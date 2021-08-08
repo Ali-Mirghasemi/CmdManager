@@ -1,0 +1,4 @@
+Examples/Basic/obj/
+*.script
+*.layout
+*.depend
