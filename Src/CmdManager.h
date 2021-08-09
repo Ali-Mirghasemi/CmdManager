@@ -54,13 +54,13 @@ extern "C" {
 /* pre-define types */
 struct __Cmd;
 typedef struct __Cmd Cmd;
-struct __Cmd_Params;
-typedef struct __Cmd_Params Cmd_Params;
+struct __Cmd_Cursor;
+typedef struct __Cmd_Cursor Cmd_Cursor;
 
 #if CMD_LIST_MODE == CMD_LIST_ARRAY
-    typedef Cmd    Cmd_Array;
+    #define Cmd_Array   Cmd
 #else
-    typedef Cmd*   Cmd_Array;
+    #define Cmd_Array   Cmd*
 #endif
 
 /**
@@ -95,7 +95,7 @@ typedef enum {
 /**
  * @brief callback of command
  */
-typedef Cmd_Result (*Cmd_CallbackFn) (Cmd* cmd, Cmd_Params* params, Cmd_Type type);
+typedef Cmd_Result (*Cmd_CallbackFn) (Cmd* cmd, Cmd_Cursor* cursor, Cmd_Type type);
 typedef void (*Cmd_NotFoundFn) (char* str);
 typedef void (*Cmd_OverflowFn) (void);
 
@@ -103,8 +103,9 @@ typedef struct {
     Cmd_Str         Value;
 } Cmd_Param;
 
-struct __Cmd_Params {
-    char*           Cursor;
+struct __Cmd_Cursor {
+    char*           Ptr;
+    Str_LenType     Len;
 };
 /**
  * @brief hold callback functions
@@ -178,9 +179,10 @@ typedef struct {
     Cmd_NotFoundFn      notFound;
     Cmd_OverflowFn      bufferOverflow;
     Cmd*                InUseCmd;
-    Cmd_Params          Params;
+    Cmd_Cursor          Cursor;
     Cmd_List            List;
     char                ParamSeperator;
+    uint8_t             InUseCmdTypeIndex;
 } CmdManager;
 
 /* default types */
