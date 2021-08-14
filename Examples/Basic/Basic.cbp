@@ -44,7 +44,7 @@
 		<Unit filename="../../../Stream/Src/OutputStream.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="../../../Stream/Src/Stream.c">
+		<Unit filename="../../../Stream/Src/StreamBuffer.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../Src/CmdManager.c">

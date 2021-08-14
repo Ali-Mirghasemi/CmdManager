@@ -20,23 +20,74 @@
 /*                              Configuration                                   */
 /********************************************************************************/
 
+/**
+ * @brief enable multi callback, when you want callback per Cmd_Type
+ */
 #define CMD_MULTI_CALLBACK                  1
-#define CMD_UNKWON_CALLBACK                 1
-
+#if CMD_MULTI_CALLBACK
+    /**
+     * @brief enable unknown callback, call when Cmd_Type not found
+     */
+    #define CMD_UNKWON_CALLBACK              1
+#endif // CMD_MULTI_CALLBACK
+/**
+ * @brief enable sort Cmd_Array on init or setCmds
+ */
 #define CMD_SORT_LIST                       1
 
 #if CMD_SORT_LIST
     #define CMD_SORT_ALG_SELECTION          1
     #define CMD_SORT_ALG_QUICK_SORT         2
-
+    /**
+     * @brief set what algorithm used for sort commands
+     */
     #define CMD_SORT_ALG                    CMD_SORT_ALG_QUICK_SORT
 #endif // CMD_SORT_LIST
 
+
+#define CMD_CASE_SENSITIVE                  1
+#define CMD_CASE_INSENSITIVE                2
+/**
+ * @brief check commands and some value in case-sensitive mode or insensitive
+ */
+#define CMD_CASE_MODE                       CMD_CASE_INSENSITIVE
+#if CMD_CASE_MODE == CMD_CASE_INSENSITIVE
+    #define CMD_LOWER_CASE                  1
+    #define CMD_UPPER_CASE                  2
+    /**
+     * @brief convert cmd name and some value into which mode before process
+     */
+    #define CMD_NAME_MODE                   CMD_LOWER_CASE
+    /**
+     * @brief convert start with in case-insensitive
+     */
+    #define CMD_CONVERT_START_WITH          0
+#endif // CMD_CASE_MOE
+/**
+ * @brief remove backspace characters before process
+ */
+#define CMD_REMOVE_BACKSPACE                1
+
+/**
+ * @brief enable CmdManager have args
+ */
+#define CMD_MANAGER_ARGS                    1
+
+/**
+ * @brief define type of Cmd array len, based on max len of Cmd_Array
+ */
 typedef uint8_t Cmd_LenType;
 
 #define CMD_LIST_ARRAY                      1
 #define CMD_LIST_POINTER_ARRAY              2
+/**
+ * @brief define type of cmd array, CMD_LIST_POINTER_ARRAY, is faster on sorting
+ */
 #define CMD_LIST_MODE                       CMD_LIST_POINTER_ARRAY
+/**
+ * @brief temp buffer size in CmdManager_handle
+ */
+#define CMD_HANDLE_BUFFER_SIZE              48
 
 #define CMD_DEFAULT_PATTERN_TYPE_EXE        ""
 #define CMD_DEFAULT_PATTERN_TYPE_SET        "="
@@ -56,6 +107,8 @@ struct __Cmd;
 typedef struct __Cmd Cmd;
 struct __Cmd_Cursor;
 typedef struct __Cmd_Cursor Cmd_Cursor;
+struct __CmdManager;
+typedef struct __CmdManager CmdManager;
 
 #if CMD_LIST_MODE == CMD_LIST_ARRAY
     #define Cmd_Array   Cmd
@@ -91,21 +144,51 @@ typedef enum {
 typedef enum {
     Cmd_Done                = 0,        /**< command end with single ending */
     Cmd_Continue            = 1,        /**< command have multiple ending */
-} Cmd_Result;
+} Cmd_Handled;
 /**
  * @brief callback of command
  */
-typedef Cmd_Result (*Cmd_CallbackFn) (Cmd* cmd, Cmd_Cursor* cursor, Cmd_Type type);
-typedef void (*Cmd_NotFoundFn) (char* str);
-typedef void (*Cmd_OverflowFn) (void);
+typedef Cmd_Handled (*Cmd_CallbackFn) (CmdManager* manager, Cmd* cmd, Cmd_Cursor* cursor, Cmd_Type type);
+typedef void (*Cmd_NotFoundFn) (CmdManager* manager, char* str);
+typedef void (*Cmd_OverflowFn) (CmdManager* manager);
+
+typedef enum {
+  Cmd_ValueType_Unknown,        /**< first character of value not match with anyone of supported values */
+  Cmd_ValueType_Number,         /**< ex: 13 */
+  Cmd_ValueType_NumberHex,      /**< ex: 0xAB25 */
+  Cmd_ValueType_NumberBinary,   /**< ex: 0b64813 */
+  Cmd_ValueType_Float,          /**< ex: 2.54 */
+  Cmd_ValueType_State,          /**< (high, low), ex: high */
+  Cmd_ValueType_StateKey,       /**< (on, off), ex: off */
+  Cmd_ValueType_Boolean,        /**< (true, false), ex: true */
+  Cmd_ValueType_String,         /**< ex: "Text" */
+  Cmd_ValueType_Null,           /**< ex: null */
+} Cmd_ValueType;
+
+typedef union {
+    char*           Unknown;
+    int32_t         Number;
+    uint32_t        NumberHex;
+    uint32_t        NumberBinary;
+    float           Float;
+    uint8_t         State;
+    uint8_t         StateKey;
+    uint8_t         Boolean;
+    char*           String;
+    char*           Null;
+} Cmd_Value;
 
 typedef struct {
-    Cmd_Str         Value;
+    Cmd_Value       Value;
+    Cmd_ValueType   ValueType;
+    Cmd_LenType     Index;
 } Cmd_Param;
 
 struct __Cmd_Cursor {
     char*           Ptr;
     Str_LenType     Len;
+    char            ParamSeperator;
+    Cmd_LenType     Index;
 };
 /**
  * @brief hold callback functions
@@ -172,18 +255,20 @@ typedef struct {
 /**
  * @brief hold properties of manger that need to handle commands
  */
-typedef struct {
+struct __CmdManager {
+#if CMD_MANAGER_ARGS
+    void*               Args;
+#endif
     Cmd_PatternTypes*   PatternTypes;
     Cmd_Str*            StartWith;
     Cmd_Str*            EndWith;
     Cmd_NotFoundFn      notFound;
     Cmd_OverflowFn      bufferOverflow;
     Cmd*                InUseCmd;
-    Cmd_Cursor          Cursor;
     Cmd_List            List;
     char                ParamSeperator;
     uint8_t             InUseCmdTypeIndex;
-} CmdManager;
+};
 
 /* default types */
 extern const Cmd_PatternTypes   CMD_PATTERN_TYPES;
@@ -225,7 +310,16 @@ void CmdManager_onOverflow(CmdManager* manager, Cmd_OverflowFn overflow);
 void CmdManager_setParamSeperator(CmdManager* manager, char sep);
 void CmdManager_setCommands(CmdManager* manager, Cmd* cmds, Cmd_LenType len);
 
-void CmdManager_handle(CmdManager* manager, IStream* stream, char* buffer, Str_LenType len);
+#if CMD_MANAGER_ARGS
+    void  CmdManager_setArgs(CmdManager* manager, void* args);
+    void* CmdManager_getArgs(CmdManager* manager);
+#endif
+
+void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer, Str_LenType len, Cmd_Cursor* cursor);
+void CmdManager_handle(CmdManager* manager, IStream* stream);
+
+// Cmd_Param parser
+Cmd_Param* CmdManager_nextParam(Cmd_Cursor* cursor, Cmd_Param* param);
 
 #if __cplusplus
 };
