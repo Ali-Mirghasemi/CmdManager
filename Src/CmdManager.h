@@ -24,12 +24,6 @@
  * @brief enable multi callback, when you want callback per Cmd_Type
  */
 #define CMD_MULTI_CALLBACK                  1
-#if CMD_MULTI_CALLBACK
-    /**
-     * @brief enable unknown callback, call when Cmd_Type not found
-     */
-    #define CMD_UNKWON_CALLBACK              1
-#endif // CMD_MULTI_CALLBACK
 /**
  * @brief enable sort Cmd_Array on init or setCmds
  */
@@ -88,6 +82,30 @@ typedef uint8_t Cmd_LenType;
  * @brief temp buffer size in CmdManager_handle
  */
 #define CMD_HANDLE_BUFFER_SIZE              48
+/**
+ * @brief enable cmd type for execute
+ */
+#define CMD_TYPE_EXE                        1
+/**
+ * @brief enable cmd type for set
+ */
+#define CMD_TYPE_SET                        1
+/**
+ * @brief enable cmd type for get
+ */
+#define CMD_TYPE_GET                        1
+/**
+ * @brief enable cmd type for help
+ */
+#define CMD_TYPE_HELP                       1
+/**
+ * @brief enable cmd type for response
+ */
+#define CMD_TYPE_RESP                       1
+/**
+ * @brief enable cmd type for unknown
+ */
+#define CMD_TYPE_UNKNOWN                    1
 
 #define CMD_DEFAULT_PATTERN_TYPE_EXE        ""
 #define CMD_DEFAULT_PATTERN_TYPE_SET        "="
@@ -109,6 +127,14 @@ struct __Cmd_Cursor;
 typedef struct __Cmd_Cursor Cmd_Cursor;
 struct __CmdManager;
 typedef struct __CmdManager CmdManager;
+/**
+ * @brief define number of enable types
+ */
+#define CMD_TYPE_LEN                (CMD_TYPE_EXE + CMD_TYPE_SET + CMD_TYPE_GET + CMD_TYPE_HELP + CMD_TYPE_RESP)
+/**
+ * @brief define number of enable pattern types
+ */
+#define CMD_PATTERN_TYPE_LEN        (CMD_TYPE_EXE + CMD_TYPE_SET + CMD_TYPE_GET + CMD_TYPE_HELP + CMD_TYPE_RESP)
 
 #if CMD_LIST_MODE == CMD_LIST_ARRAY
     #define Cmd_Array   Cmd
@@ -123,20 +149,51 @@ typedef struct {
     const char*     Name;
     Str_LenType     Len;
 } Cmd_Str;
+typedef enum {
+#if CMD_TYPE_EXE
+    Cmd_TypeIndex_Execute,
+#endif
+#if CMD_TYPE_SET
+    Cmd_TypeIndex_Set,
+#endif
+#if CMD_TYPE_GET
+    Cmd_TypeIndex_Get,
+#endif
+#if CMD_TYPE_HELP
+    Cmd_TypeIndex_Help,
+#endif
+#if CMD_TYPE_RESP
+    Cmd_TypeIndex_Response,
+#endif
+#if CMD_TYPE_UNKNOWN
+    Cmd_TypeIndex_Unknown,
+#endif
+} Cmd_TypeIndex;
 /**
  * @brief show command type
  */
 typedef enum {
-    Cmd_Type_Unknown        = 0x00,     /**< don't check cmd name ending */
-    Cmd_Type_Execute        = 0x01,     /**< ex: "<cmd>\r\n" */
-    Cmd_Type_Set            = 0x02,     /**< ex: "<cmd>=<params>\r\n" */
-    Cmd_Type_Get            = 0x04,     /**< ex: "<cmd>?\r\n" */
-    Cmd_Type_Help           = 0x08,     /**< ex: "<cmd>=?\r\n" */
-    Cmd_Type_Response       = 0x10,     /**< ex: "<cmd>: <status>\r\n" */
-    Cmd_Type_Any            = 0x1F,     /**< check all types */
+#if CMD_TYPE_EXE
+    Cmd_Type_Execute        = 1 << Cmd_TypeIndex_Execute,   /**< ex: "<cmd>\r\n" */
+#endif
+#if CMD_TYPE_SET
+    Cmd_Type_Set            = 1 << Cmd_TypeIndex_Set,       /**< ex: "<cmd>=<params>\r\n" */
+#endif
+#if CMD_TYPE_GET
+    Cmd_Type_Get            = 1 << Cmd_TypeIndex_Get,       /**< ex: "<cmd>?\r\n" */
+#endif
+#if CMD_TYPE_HELP
+    Cmd_Type_Help           = 1 << Cmd_TypeIndex_Help,      /**< ex: "<cmd>=?\r\n" */
+#endif
+#if CMD_TYPE_RESP
+    Cmd_Type_Response       = 1 << Cmd_TypeIndex_Response,  /**< ex: "<cmd>: <status>\r\n" */
+#endif
+#if CMD_TYPE_UNKNOWN
+    Cmd_Type_Unknown        = 1 << Cmd_TypeIndex_Unknown,   /**< don't check cmd name ending */
+#endif
+    Cmd_Type_None           = 0x00,
+    Cmd_Type_Any            = 0x1F,                         /**< check all types */
 } Cmd_Type;
-
-#define CMD_TYPE_LEN        5
 
 /**
  * @brief determine need handle multiple ending or not
@@ -151,7 +208,9 @@ typedef enum {
 typedef Cmd_Handled (*Cmd_CallbackFn) (CmdManager* manager, Cmd* cmd, Cmd_Cursor* cursor, Cmd_Type type);
 typedef void (*Cmd_NotFoundFn) (CmdManager* manager, char* str);
 typedef void (*Cmd_OverflowFn) (CmdManager* manager);
-
+/**
+ * @brief show type of param
+ */
 typedef enum {
   Cmd_ValueType_Unknown,        /**< first character of value not match with anyone of supported values */
   Cmd_ValueType_Number,         /**< ex: 13 */
@@ -164,7 +223,9 @@ typedef enum {
   Cmd_ValueType_String,         /**< ex: "Text" */
   Cmd_ValueType_Null,           /**< ex: null */
 } Cmd_ValueType;
-
+/**
+ * @brief hold type of param in same memory
+ */
 typedef union {
     char*           Unknown;
     int32_t         Number;
@@ -177,13 +238,17 @@ typedef union {
     char*           String;
     char*           Null;
 } Cmd_Value;
-
+/**
+ * @brief show details of param
+ */
 typedef struct {
     Cmd_Value       Value;
     Cmd_ValueType   ValueType;
     Cmd_LenType     Index;
 } Cmd_Param;
-
+/**
+ * @brief use for handle params and show current pos
+ */
 struct __Cmd_Cursor {
     char*           Ptr;
     Str_LenType     Len;
@@ -195,14 +260,24 @@ struct __Cmd_Cursor {
  */
 typedef union {
 #if CMD_MULTI_CALLBACK
-    Cmd_CallbackFn      fn[5 + CMD_UNKWON_CALLBACK];
+    Cmd_CallbackFn      fn[CMD_TYPE_LEN];
     struct {
+    #if CMD_TYPE_EXE
         Cmd_CallbackFn  execute;
+    #endif
+    #if CMD_TYPE_SET
         Cmd_CallbackFn  set;
+    #endif
+    #if CMD_TYPE_GET
         Cmd_CallbackFn  get;
+    #endif
+    #if CMD_TYPE_HELP
         Cmd_CallbackFn  help;
+    #endif
+    #if CMD_TYPE_RESP
         Cmd_CallbackFn  response;
-    #if CMD_UNKWON_CALLBACK
+    #endif
+    #if CMD_TYPE_UNKNOWN
         Cmd_CallbackFn  unknown;
     #endif // CMD_UNKWON_CALLBACK
     };
@@ -216,25 +291,47 @@ typedef union {
 typedef union {
     uint8_t         Flags;
     struct {
+    #if CMD_TYPE_EXE
         uint8_t     Execute     : 1;
+    #endif
+    #if CMD_TYPE_SET
         uint8_t     Set         : 1;
+    #endif
+    #if CMD_TYPE_GET
         uint8_t     Get         : 1;
+    #endif
+    #if CMD_TYPE_HELP
         uint8_t     Help        : 1;
+    #endif
+    #if CMD_TYPE_RESP
         uint8_t     Response    : 1;
-        uint8_t     Reserved    : 3;
+    #endif
+    #if CMD_TYPE_UNKNOWN
+        uint8_t     Unknown     : 1;
+    #endif
     };
 } Cmd_Types;
 /**
  * @brief custom type pattern
  */
 typedef union {
-    Cmd_Str*            Patterns[5];
+    Cmd_Str*            Patterns[CMD_PATTERN_TYPE_LEN];
     struct {
+    #if CMD_TYPE_EXE
         Cmd_Str*        Execute;
+    #endif
+    #if CMD_TYPE_SET
         Cmd_Str*        Set;
+    #endif
+    #if CMD_TYPE_GET
         Cmd_Str*        Get;
+    #endif
+    #if CMD_TYPE_HELP
         Cmd_Str*        Help;
+    #endif
+    #if CMD_TYPE_RESP
         Cmd_Str*        Response;
+    #endif
     };
 } Cmd_PatternTypes;
 /**
@@ -280,21 +377,30 @@ extern const char               CMD_PARAM_SEPERATOR;
 #define CMD_LIST_INIT(LIST)         {LIST, CMD_ARR_LEN(LIST)}
 
 #if CMD_MULTI_CALLBACK
-    #define CMD_INIT(NAME, TYPES, EXE, SET, GET, HELP, RESP)    {{EXE, SET, GET, HELP, RESP}, CMD_STR_INIT(NAME), (TYPES)}
-
+    #define CMD_INIT(NAME, TYPES, ...)      {{{__VA_ARGS__}}, CMD_STR_INIT(NAME), (TYPES)}
 #else
-    #define CMD_INIT(NAME, TYPES, FN)                           {{FN}, CMD_STR_INIT(NAME), (TYPES)}
+    #define CMD_INIT(NAME, TYPES, FN)       {{FN}, CMD_STR_INIT(NAME), (TYPES)}
 #endif // CMD_MULTI_CALLBACK
 
 void Cmd_init(Cmd* cmd, const char* name, Cmd_Type types);
 void Cmd_setTypes(Cmd* cmd, Cmd_Type types);
 #if CMD_MULTI_CALLBACK
+#if CMD_TYPE_EXE
     void Cmd_onExecute(Cmd* cmd, Cmd_CallbackFn fn);
+#endif
+#if CMD_TYPE_SET
     void Cmd_onSet(Cmd* cmd, Cmd_CallbackFn fn);
+#endif
+#if CMD_TYPE_GET
     void Cmd_onGet(Cmd* cmd, Cmd_CallbackFn fn);
+#endif
+#if CMD_TYPE_HELP
     void Cmd_onHelp(Cmd* cmd, Cmd_CallbackFn fn);
+#endif
+#if CMD_TYPE_RESP
     void Cmd_onResponse(Cmd* cmd, Cmd_CallbackFn fn);
-#if CMD_UNKNOWN_CALLBACK
+#endif
+#if CMD_TYPE_UNKNOWN
     void Cmd_onUnknown(Cmd* cmd, Cmd_CallbackFn fn);
 #endif // CMD_UNKNOWN_CALLBACK
 
@@ -302,13 +408,14 @@ void Cmd_setTypes(Cmd* cmd, Cmd_Type types);
     void Cmd_on(Cmd* cmd, Cmd_CallbackFn fn);
 #endif // CMD_MULTI_CALLBACK
 
-void CmdManager_init(CmdManager* manager, Cmd* cmds, Cmd_LenType len);
+void CmdManager_init(CmdManager* manager, Cmd_Array* cmds, Cmd_LenType len);
 void CmdManager_setStartWith(CmdManager* manager, Cmd_Str* startWith);
 void CmdManager_setEndWith(CmdManager* manager, Cmd_Str* endWith);
 void CmdManager_onNotFound(CmdManager* manager, Cmd_NotFoundFn notFound);
 void CmdManager_onOverflow(CmdManager* manager, Cmd_OverflowFn overflow);
 void CmdManager_setParamSeperator(CmdManager* manager, char sep);
-void CmdManager_setCommands(CmdManager* manager, Cmd* cmds, Cmd_LenType len);
+void CmdManager_setCommands(CmdManager* manager, Cmd_Array* cmds, Cmd_LenType len);
+void CmdManager_setPatternTypes(CmdManager* manager, Cmd_PatternTypes* patterns);
 
 #if CMD_MANAGER_ARGS
     void  CmdManager_setArgs(CmdManager* manager, void* args);

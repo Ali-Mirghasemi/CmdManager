@@ -5,25 +5,45 @@
 
 
 /* public variables */
-static const Cmd_Str PATTERN_TYPE_EXE   = CMD_STR_INIT(CMD_DEFAULT_PATTERN_TYPE_EXE);
-static const Cmd_Str PATTERN_TYPE_SET   = CMD_STR_INIT(CMD_DEFAULT_PATTERN_TYPE_SET);
-static const Cmd_Str PATTERN_TYPE_GET   = CMD_STR_INIT(CMD_DEFAULT_PATTERN_TYPE_GET);
-static const Cmd_Str PATTERN_TYPE_HELP  = CMD_STR_INIT(CMD_DEFAULT_PATTERN_TYPE_HELP);
-static const Cmd_Str PATTERN_TYPE_RESP  = CMD_STR_INIT(CMD_DEFAULT_PATTERN_TYPE_RESP);
-const Cmd_PatternTypes CMD_PATTERN_TYPES = {
+#if CMD_TYPE_EXE
+    static const Cmd_Str PATTERN_TYPE_EXE   = CMD_STR_INIT(CMD_DEFAULT_PATTERN_TYPE_EXE);
+#endif
+#if CMD_TYPE_SET
+    static const Cmd_Str PATTERN_TYPE_SET   = CMD_STR_INIT(CMD_DEFAULT_PATTERN_TYPE_SET);
+#endif
+#if CMD_TYPE_GET
+    static const Cmd_Str PATTERN_TYPE_GET   = CMD_STR_INIT(CMD_DEFAULT_PATTERN_TYPE_GET);
+#endif
+#if CMD_TYPE_HELP
+    static const Cmd_Str PATTERN_TYPE_HELP  = CMD_STR_INIT(CMD_DEFAULT_PATTERN_TYPE_HELP);
+#endif
+#if CMD_TYPE_RESP
+    static const Cmd_Str PATTERN_TYPE_RESP  = CMD_STR_INIT(CMD_DEFAULT_PATTERN_TYPE_RESP);
+#endif
+const Cmd_PatternTypes CMD_PATTERN_TYPES = {{
+#if CMD_TYPE_EXE
     (Cmd_Str*) &PATTERN_TYPE_EXE,
+#endif
+#if CMD_TYPE_SET
     (Cmd_Str*) &PATTERN_TYPE_SET,
+#endif
+#if CMD_TYPE_GET
     (Cmd_Str*) &PATTERN_TYPE_GET,
+#endif
+#if CMD_TYPE_HELP
     (Cmd_Str*) &PATTERN_TYPE_HELP,
+#endif
+#if CMD_TYPE_RESP
     (Cmd_Str*) &PATTERN_TYPE_RESP,
-};
+#endif
+}};
 const Cmd_Str CMD_END_WITH = CMD_STR_INIT(CMD_DEFAULT_END_WITH);
 const char CMD_PARAM_SEPERATOR = ',';
 /* private defines */
 #if CMD_SORT_LIST
     #if CMD_SORT_ALG == CMD_SORT_ALG_SELECTION
         #define __sort          Mem_sort
-    #else if CMD_SORT_ALG == CMD_SORT_ALG_QUICK_SORT
+    #elif CMD_SORT_ALG == CMD_SORT_ALG_QUICK_SORT
         #define __sort          Mem_quickSort
     #endif
 
@@ -40,12 +60,10 @@ const char CMD_PARAM_SEPERATOR = ',';
 #else
     #define __convert(STR, LEN)
 #endif
-/* private variables */
-
 /* private functions */
 static char Cmd_compare(const void* itemA, const void* itemB, Mem_LenType itemLen);
 static char Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemLen);
-static void Cmd_swap(const void* itemA, const void* itemB, Mem_LenType itemLen);
+static void Cmd_swap(void* itemA, void* itemB, Mem_LenType itemLen);
 static char CmdType_compare(const void* buff, const void* type, Mem_LenType itemLen);
 static uint8_t CmdParam_parseBinary(Cmd_Cursor* cursor, Cmd_Param* param);
 static uint8_t CmdParam_parseHex(Cmd_Cursor* cursor, Cmd_Param* param);
@@ -56,94 +74,195 @@ static uint8_t CmdParam_parseStateKey(Cmd_Cursor* cursor, Cmd_Param* param);
 static uint8_t CmdParam_parseBoolean(Cmd_Cursor* cursor, Cmd_Param* param);
 static uint8_t CmdParam_parseNull(Cmd_Cursor* cursor, Cmd_Param* param);
 static uint8_t CmdParam_parseUnknown(Cmd_Cursor* cursor, Cmd_Param* param);
-
+/**
+ * @brief initialize Cmd
+ *
+ * @param cmd
+ * @param name
+ * @param types
+ */
 void Cmd_init(Cmd* cmd, const char* name, Cmd_Type types) {
     cmd->CmdName.Name = name;
     cmd->CmdName.Len = Str_len(name);
     cmd->Types.Flags = (uint8_t) types;
     Mem_set(cmd->Callbacks.fn, 0x00, sizeof(Cmd_Callbacks));
 }
+/**
+ * @brief enable type for callbacks
+ *
+ * @param cmd
+ * @param types
+ */
 void Cmd_setTypes(Cmd* cmd, Cmd_Type types) {
     cmd->Types.Flags = (uint8_t) types;
 }
 #if CMD_MULTI_CALLBACK
-    void Cmd_onExecute(Cmd* cmd, Cmd_CallbackFn fn) {
-        cmd->Callbacks.execute = fn;
-    }
-    void Cmd_onSet(Cmd* cmd, Cmd_CallbackFn fn) {
-        cmd->Callbacks.set = fn;
-    }
-    void Cmd_onGet(Cmd* cmd, Cmd_CallbackFn fn) {
-        cmd->Callbacks.get = fn;
-    }
-    void Cmd_onHelp(Cmd* cmd, Cmd_CallbackFn fn) {
-        cmd->Callbacks.help = fn;
-    }
-    void Cmd_onResponse(Cmd* cmd, Cmd_CallbackFn fn) {
-        cmd->Callbacks.response = fn;
-    }
-#if CMD_UNKNOWN_CALLBACK
-    void Cmd_onUnknown(Cmd* cmd, Cmd_CallbackFn fn) {
-        cmd->Callbacks.unknown = fn;
-    }
-#endif // CMD_UNKNOWN_CALLBACK
+#if CMD_TYPE_EXE
+void Cmd_onExecute(Cmd* cmd, Cmd_CallbackFn fn) {
+    cmd->Callbacks.execute = fn;
+}
+#endif
+#if CMD_TYPE_SET
+void Cmd_onSet(Cmd* cmd, Cmd_CallbackFn fn) {
+    cmd->Callbacks.set = fn;
+}
+#endif
+#if CMD_TYPE_GET
+void Cmd_onGet(Cmd* cmd, Cmd_CallbackFn fn) {
+    cmd->Callbacks.get = fn;
+}
+#endif
+#if CMD_TYPE_HELP
+void Cmd_onHelp(Cmd* cmd, Cmd_CallbackFn fn) {
+    cmd->Callbacks.help = fn;
+}
+#endif
+#if CMD_TYPE_RESP
+void Cmd_onResponse(Cmd* cmd, Cmd_CallbackFn fn) {
+    cmd->Callbacks.response = fn;
+}
+#endif
+#if CMD_TYPE_UNKNOWN
+void Cmd_onUnknown(Cmd* cmd, Cmd_CallbackFn fn) {
+    cmd->Callbacks.unknown = fn;
+}
+#endif
 
 #else
-    void Cmd_on(Cmd* cmd, Cmd_CallbackFn fn) {
-        cmd->Callbacks.fn[0] = fn;
-    }
+void Cmd_on(Cmd* cmd, Cmd_CallbackFn fn) {
+    cmd->Callbacks.fn[0] = fn;
+}
 #endif // CMD_MULTI_CALLBACK
-
-void CmdManager_init(CmdManager* manager, Cmd* cmds, Cmd_LenType len) {
+/**
+ * @brief initialize CmdManager with default pattern and param seperator
+ *
+ * @param manager
+ * @param cmds
+ * @param len
+ */
+void CmdManager_init(CmdManager* manager, Cmd_Array* cmds, Cmd_LenType len) {
     manager->PatternTypes = (Cmd_PatternTypes*) &CMD_PATTERN_TYPES;
     manager->StartWith = NULL;
     manager->EndWith = (Cmd_Str*) &CMD_END_WITH;
     manager->List.Cmds = cmds;
     manager->List.Len = len;
-    manager->notFound = NULL;
-    manager->bufferOverflow = NULL;
+    manager->notFound = (Cmd_NotFoundFn) NULL;
+    manager->bufferOverflow = (Cmd_OverflowFn) NULL;
     manager->ParamSeperator = CMD_PARAM_SEPERATOR;
     manager->InUseCmd = NULL;
 #if CMD_SORT_LIST
     __sort(manager->List.Cmds, manager->List.Len, sizeof(manager->List.Cmds[0]), Cmd_compare, Cmd_swap);
 #endif
 }
+/**
+ * @brief set pattern for start of commands
+ *
+ * @param manager
+ * @param startWith
+ */
 void CmdManager_setStartWith(CmdManager* manager, Cmd_Str* startWith) {
     manager->StartWith = startWith;
 }
+/**
+ * @brief set pattern for end of commands
+ *
+ * @param manager
+ * @param endWith
+ */
 void CmdManager_setEndWith(CmdManager* manager, Cmd_Str* endWith) {
     manager->EndWith = endWith;
 }
+/**
+ * @brief set not found callback
+ *
+ * @param manager
+ * @param notFound
+ */
 void CmdManager_onNotFound(CmdManager* manager, Cmd_NotFoundFn notFound) {
     manager->notFound = notFound;
 }
+/**
+ * @brief set overflow command
+ *
+ * @param manager
+ * @param overflow
+ */
 void CmdManager_onOverflow(CmdManager* manager, Cmd_OverflowFn overflow) {
     manager->bufferOverflow = overflow;
 }
+/**
+ * @brief set param seperator
+ *
+ * @param manager
+ * @param sep
+ */
 void CmdManager_setParamSeperator(CmdManager* manager, char sep) {
     manager->ParamSeperator = sep;
 }
-void CmdManager_setCommands(CmdManager* manager, Cmd* cmds, Cmd_LenType len) {
+/**
+ * @brief set commands list
+ *
+ * @param manager
+ * @param cmds
+ * @param len
+ */
+void CmdManager_setCommands(CmdManager* manager, Cmd_Array* cmds, Cmd_LenType len) {
     manager->List.Cmds = cmds;
     manager->List.Len = len;
 #if CMD_SORT_LIST
     __sort(manager->List.Cmds, manager->List.Len, sizeof(manager->List.Cmds[0]), Cmd_compare, Cmd_swap);
 #endif
 }
+/**
+ * @brief set pattern types
+ *
+ * @param manager
+ * @param patterns
+ */
+void CmdManager_setPatternTypes(CmdManager* manager, Cmd_PatternTypes* patterns) {
+    manager->PatternTypes = patterns;
+}
 #if CMD_MANAGER_ARGS
+/**
+ * @brief set args for manager
+ *
+ * @param manager
+ * @param args
+ */
 void CmdManager_setArgs(CmdManager* manager, void* args) {
     manager->Args = args;
 }
+/**
+ * @brief get args for manager
+ *
+ * @param manager
+ * @return void*
+ */
 void* CmdManager_getArgs(CmdManager* manager) {
     return manager->Args;
 }
 #endif
+/**
+ * @brief process incoming messages
+ *
+ * @param manager
+ * @param stream
+ */
 void CmdManager_handle(CmdManager* manager, IStream* stream) {
     Cmd_Cursor cursor;
     char buffer[CMD_HANDLE_BUFFER_SIZE];
 
     CmdManager_handleStatic(manager, stream, buffer, sizeof(buffer), &cursor);
 }
+/**
+ * @brief process incoming messages with static buffer and cursor for memory safety
+ *
+ * @param manager
+ * @param stream
+ * @param buffer
+ * @param len
+ * @param cursor
+ */
 void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer, Str_LenType len, Cmd_Cursor* cursor) {
     if (IStream_available(stream) > 0) {
         Cmd_Str cmdStr;
@@ -151,8 +270,15 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
         Stream_LenType lineLen = IStream_readBytesUntilPattern(stream, manager->EndWith->Name, manager->EndWith->Len, pBuff, len);
         if (lineLen > 0) {
             Mem_LenType cmdIndex;
-            // remove endWith
             lineLen -= manager->EndWith->Len;
+            // check end with for overflow error
+            if (Str_compareFix(&pBuff[lineLen], manager->EndWith->Name, manager->EndWith->Len) != 0) {
+                if (manager->bufferOverflow) {
+                    manager->bufferOverflow(manager);
+                }
+                return;
+            }
+            // remove endWith
             pBuff[lineLen] = '\0';
             // check it's empty line or not
             if(lineLen == 0) {
@@ -182,7 +308,7 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                 cmdStr.Len = pBuff - cmdStr.Name;
                 lineLen -= cmdStr.Len;
                 // find cmd
-                __convert(cmdStr.Name, cmdStr.Len);
+                __convert((char*) cmdStr.Name, cmdStr.Len);
                 cmdIndex = __search(manager->List.Cmds, manager->List.Len, sizeof(manager->List.Cmds[0]), &cmdStr, Cmd_compareName);
                 if (cmdIndex != -1) {
                 #if CMD_LIST_MODE == CMD_LIST_ARRAY
@@ -191,7 +317,7 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                     Cmd* cmd = manager->List.Cmds[cmdIndex];
                 #endif // CMD_LIST_MODE
                     if (manager->PatternTypes) {
-                        Cmd_Type type;
+                        Cmd_Type type = Cmd_Type_None;
                         // ignore whitespaces between Cmd_Name and Cmd_Type
                         pBuff = Str_ignoreWhitespace(pBuff);
                         // find type len
@@ -215,15 +341,6 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                                 }
                                 return;
                             }
-                        #if CMD_UNKWON_CALLBACK
-                            else if (cmd->Callbacks.unknown) {
-                                if (cmd->Callbacks.unknown(manager, cmd, cursor, type) != Cmd_Done) {
-                                    manager->InUseCmd = cmd;
-                                    manager->InUseCmdTypeIndex = typeIndex;
-                                }
-                                return;
-                            }
-                        #endif // CMD_UNKWON_CALLBACK
                         #else
                             if (cmd->Callbacks.fn[0] && (cmd->Types.Flags & type)) {
                                 if (cmd->Callbacks.fn[0](cmd, cursor, type) != Cmd_Done) {
@@ -233,6 +350,27 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                                 return;
                             }
                         #endif // CMD_MULTI_CALLBACK
+                        }
+                        else {
+                        #if CMD_TYPE_UNKNOWN
+                        #if CMD_MULTI_CALLBACK
+                            if (cmd->Callbacks.unknown && (cmd->Types.Flags & Cmd_Type_Unknown)) {
+                                if (cmd->Callbacks.unknown(manager, cmd, cursor, type) != Cmd_Done) {
+                                    manager->InUseCmd = cmd;
+                                    manager->InUseCmdTypeIndex = typeIndex;
+                                }
+                                return;
+                            }
+                        #else
+                            if (cmd->Callbacks.fn[0] && (cmd->Types.Flags & Cmd_Type_Unknown)) {
+                                if (cmd->Callbacks.fn[0](cmd, cursor, type) != Cmd_Done) {
+                                    manager->InUseCmd = cmd;
+                                    manager->InUseCmdTypeIndex = typeIndex;
+                                }
+                                return;
+                            }
+                        #endif // CMD_MULTI_CALLBACK
+                        #endif // CMD_TYPE_UNKNOWN
                         }
                     }
                 }
@@ -259,7 +397,13 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
         }
     }
 }
-
+/**
+ * @brief parse next param and return
+ *
+ * @param cursor
+ * @param param
+ * @return Cmd_Param* return null if param was invalid
+ */
 Cmd_Param* CmdManager_nextParam(Cmd_Cursor* cursor, Cmd_Param* param) {
     char* pStr;
     uint8_t res = 0;
@@ -533,7 +677,7 @@ static char Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemL
 
 #endif // CMD_LIST_MODE
 }
-static void Cmd_swap(const void* itemA, const void* itemB, Mem_LenType itemLen) {
+static void Cmd_swap(void* itemA, void* itemB, Mem_LenType itemLen) {
 #if CMD_LIST_MODE == CMD_LIST_ARRAY
     Cmd temp;
     Mem_copy((uint8_t*) &temp, itemA, itemLen);
