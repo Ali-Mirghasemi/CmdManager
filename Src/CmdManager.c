@@ -500,7 +500,7 @@ static uint8_t CmdParam_parseBinary(Cmd_Cursor* cursor, Cmd_Param* param) {
     cursor->Len -= len;
 
     param->ValueType = Cmd_ValueType_NumberBinary;
-    return Str_convertUNumFix(pStr + 2, (unsigned int*) &param->Value.NumberBinary, Str_Binary, len) == Str_Ok;
+    return Str_convertUNumFix(pStr + 2, (unsigned int*) &param->Value.NumberBinary, Str_Binary, len - 2) == Str_Ok;
 }
 static uint8_t CmdParam_parseHex(Cmd_Cursor* cursor, Cmd_Param* param) {
     char* pStr = cursor->Ptr;
@@ -510,7 +510,7 @@ static uint8_t CmdParam_parseHex(Cmd_Cursor* cursor, Cmd_Param* param) {
     cursor->Len -= len;
 
     param->ValueType = Cmd_ValueType_NumberHex;
-    return Str_convertUNumFix(pStr + 2, (unsigned int*) &param->Value.NumberHex, Str_Hex, len) == Str_Ok;
+    return Str_convertUNumFix(pStr + 2, (unsigned int*) &param->Value.NumberHex, Str_Hex, len - 2) == Str_Ok;
 }
 static uint8_t CmdParam_parseNum(Cmd_Cursor* cursor, Cmd_Param* param) {
     char* pStr = cursor->Ptr;
