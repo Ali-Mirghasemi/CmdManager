@@ -290,6 +290,8 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
         #endif // CMD_REMOVE_BACKSPACE
             // check it's from last cmd or it's new cmd
             if (manager->InUseCmd == NULL) {
+                // ignore whitspaces in start of frame
+                pBuff = Str_ignoreWhitespace(pBuff);
                 // check start with
                 if (manager->StartWith) {
                 #if CMD_CONVERT_START_WITH
@@ -302,10 +304,12 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                         return;
                     }
                 }
+                // ignore whitspaces
+                pBuff = Str_ignoreWhitespace(pBuff);
                 // find cmd name len
                 cmdStr.Name = pBuff;
                 pBuff = Str_ignoreNameCharacters(pBuff);
-                cmdStr.Len = pBuff - cmdStr.Name;
+                cmdStr.Len = (Str_LenType) (pBuff - cmdStr.Name);
                 lineLen -= cmdStr.Len;
                 // find cmd
                 __convert((char*) cmdStr.Name, cmdStr.Len);
@@ -320,10 +324,10 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                         Cmd_Type type = Cmd_Type_None;
                         // ignore whitespaces between Cmd_Name and Cmd_Type
                         pBuff = Str_ignoreWhitespace(pBuff);
-                        // find type len
+                        // find cmd type len
                         cmdStr.Name = pBuff;
                         pBuff = Str_ignoreCommandCharacters(pBuff);
-                        cmdStr.Len = pBuff - cmdStr.Name;
+                        cmdStr.Len = (Str_LenType) (pBuff - cmdStr.Name);
                         lineLen -= cmdStr.Len;
                         // find cmd type
                         Mem_LenType typeIndex = Mem_linearSearch(manager->PatternTypes->Patterns, CMD_TYPE_LEN, sizeof(Cmd_Str*), &cmdStr, CmdType_compare);
