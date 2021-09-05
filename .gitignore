@@ -2,3 +2,6 @@ Examples/Basic/obj/
 *.script
 *.layout
 *.depend
+*.c~
+*.cci
+*.hci

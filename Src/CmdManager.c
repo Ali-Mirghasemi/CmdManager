@@ -64,7 +64,7 @@ const char CMD_PARAM_SEPERATOR = ',';
 static char Cmd_compare(const void* itemA, const void* itemB, Mem_LenType itemLen);
 static char Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemLen);
 static void Cmd_swap(void* itemA, void* itemB, Mem_LenType itemLen);
-static char CmdType_compare(const void* buff, const void* type, Mem_LenType itemLen);
+static char CmdType_compare(const void* name, const void* type, Mem_LenType itemLen);
 static uint8_t CmdParam_parseBinary(Cmd_Cursor* cursor, Cmd_Param* param);
 static uint8_t CmdParam_parseHex(Cmd_Cursor* cursor, Cmd_Param* param);
 static uint8_t CmdParam_parseNum(Cmd_Cursor* cursor, Cmd_Param* param);
@@ -267,12 +267,12 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
     if (IStream_available(stream) > 0) {
         Cmd_Str cmdStr;
         char* pBuff = buffer;
-        Stream_LenType lineLen = IStream_readBytesUntilPattern(stream, manager->EndWith->Name, manager->EndWith->Len, pBuff, len);
+        Stream_LenType lineLen = IStream_readBytesUntilPattern(stream, (const uint8_t*) manager->EndWith->Name, manager->EndWith->Len, (uint8_t*) pBuff, len);
         if (lineLen > 0) {
             Mem_LenType cmdIndex;
             lineLen -= manager->EndWith->Len;
             // check end with for overflow error
-            if (Str_compareFix(&pBuff[lineLen], manager->EndWith->Name, manager->EndWith->Len) != 0) {
+            if (Str_compareFix((const char*) &pBuff[lineLen], (const char*) manager->EndWith->Name, manager->EndWith->Len) != 0) {
                 if (manager->bufferOverflow) {
                     manager->bufferOverflow(manager);
                 }
@@ -322,6 +322,7 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                 #endif // CMD_LIST_MODE
                     if (manager->PatternTypes) {
                         Cmd_Type type = Cmd_Type_None;
+                        Mem_LenType typeIndex;
                         // ignore whitespaces between Cmd_Name and Cmd_Type
                         pBuff = Str_ignoreWhitespace(pBuff);
                         // find cmd type len
@@ -330,7 +331,7 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                         cmdStr.Len = (Str_LenType) (pBuff - cmdStr.Name);
                         lineLen -= cmdStr.Len;
                         // find cmd type
-                        Mem_LenType typeIndex = Mem_linearSearch(manager->PatternTypes->Patterns, CMD_TYPE_LEN, sizeof(Cmd_Str*), &cmdStr, CmdType_compare);
+                        typeIndex = Mem_linearSearch(manager->PatternTypes->Patterns, CMD_TYPE_LEN, sizeof(Cmd_Str*), &cmdStr, CmdType_compare);
                         if (typeIndex != -1) {
                             cursor->Ptr = pBuff;
                             cursor->Len = lineLen;
@@ -520,6 +521,9 @@ static uint8_t CmdParam_parseNum(Cmd_Cursor* cursor, Cmd_Param* param) {
     char* pStr = cursor->Ptr;
     Str_LenType len;
 
+    if (*cursor->Ptr == '-') {
+        cursor->Ptr++;
+    }
     cursor->Ptr = Str_ignoreNumeric(cursor->Ptr);
 
     if (*cursor->Ptr == '.') {
@@ -536,7 +540,7 @@ static uint8_t CmdParam_parseNum(Cmd_Cursor* cursor, Cmd_Param* param) {
         len = (Str_LenType)(cursor->Ptr - pStr);
         cursor->Len -= len;
         param->ValueType = Cmd_ValueType_Number;
-        return Str_convertNumFix(pStr, (unsigned int*) &param->Value.Number, Str_Decimal, len) == Str_Ok;
+        return Str_convertNumFix(pStr, (int*) &param->Value.Number, Str_Decimal, len) == Str_Ok;
     }
 }
 static uint8_t CmdParam_parseString(Cmd_Cursor* cursor, Cmd_Param* param) {

@@ -16,7 +16,6 @@ const Cmd CMD_TEST = CMD_INIT("test", Cmd_Type_Any, Test_onExe, Test_onSet, Test
 Cmd_Handled Test2_onSet(CmdManager* manager, Cmd* cmd, Cmd_Cursor* cursor, Cmd_Type type);
 const Cmd CMD_TEST2 = CMD_INIT("test2", Cmd_Type_Any, NULL, Test2_onSet, NULL, NULL, NULL);
 
-
 Cmd_Handled Test3_onExe(CmdManager* manager, Cmd* cmd, Cmd_Cursor* cursor, Cmd_Type type);
 const Cmd CMD_TEST3 = CMD_INIT("test3", Cmd_Type_Any, Test3_onExe, NULL, NULL, NULL, NULL);
 

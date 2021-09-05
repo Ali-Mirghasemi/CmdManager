@@ -116,7 +116,7 @@ typedef uint8_t Cmd_LenType;
 #define CMD_DEFAULT_PARAM_SEPERATOR         ','
 /********************************************************************************/
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -428,7 +428,7 @@ void CmdManager_handle(CmdManager* manager, IStream* stream);
 // Cmd_Param parser
 Cmd_Param* CmdManager_nextParam(Cmd_Cursor* cursor, Cmd_Param* param);
 
-#if __cplusplus
+#ifdef __cplusplus
 };
 #endif
 

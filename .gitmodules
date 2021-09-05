@@ -1,0 +1,3 @@
+[submodule "Examples/AVR-CmdManager"]
+	path = Examples/AVR-CmdManager
+	url = https://github.com/Ali-Mirghasemi/AVR-CmdManager-Example
