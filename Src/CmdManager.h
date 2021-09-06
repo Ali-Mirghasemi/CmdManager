@@ -112,7 +112,7 @@ typedef uint8_t Cmd_LenType;
 #define CMD_DEFAULT_PATTERN_TYPE_GET        "?"
 #define CMD_DEFAULT_PATTERN_TYPE_HELP       "=?"
 #define CMD_DEFAULT_PATTERN_TYPE_RESP       ":"
-#define CMD_DEFAULT_END_WITH                "\n"
+#define CMD_DEFAULT_END_WITH                "\r\n"
 #define CMD_DEFAULT_PARAM_SEPERATOR         ','
 /********************************************************************************/
 

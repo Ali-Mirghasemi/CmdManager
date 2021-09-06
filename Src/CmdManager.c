@@ -38,7 +38,6 @@ const Cmd_PatternTypes CMD_PATTERN_TYPES = {{
 #endif
 }};
 const Cmd_Str CMD_END_WITH = CMD_STR_INIT(CMD_DEFAULT_END_WITH);
-const char CMD_PARAM_SEPERATOR = ',';
 /* private defines */
 #if CMD_SORT_LIST
     #if CMD_SORT_ALG == CMD_SORT_ALG_SELECTION
@@ -148,7 +147,7 @@ void CmdManager_init(CmdManager* manager, Cmd_Array* cmds, Cmd_LenType len) {
     manager->List.Len = len;
     manager->notFound = (Cmd_NotFoundFn) NULL;
     manager->bufferOverflow = (Cmd_OverflowFn) NULL;
-    manager->ParamSeperator = CMD_PARAM_SEPERATOR;
+    manager->ParamSeperator = CMD_DEFAULT_PARAM_SEPERATOR;
     manager->InUseCmd = NULL;
 #if CMD_SORT_LIST
     __sort(manager->List.Cmds, manager->List.Len, sizeof(manager->List.Cmds[0]), Cmd_compare, Cmd_swap);
@@ -268,7 +267,7 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
         Cmd_Str cmdStr;
         char* pBuff = buffer;
         Stream_LenType lineLen = IStream_readBytesUntilPattern(stream, (const uint8_t*) manager->EndWith->Name, manager->EndWith->Len, (uint8_t*) pBuff, len);
-        if (lineLen > 0) {
+        if (lineLen > 0) {   
             Mem_LenType cmdIndex;
             lineLen -= manager->EndWith->Len;
             // check end with for overflow error
@@ -311,7 +310,7 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                 pBuff = Str_ignoreNameCharacters(pBuff);
                 cmdStr.Len = (Str_LenType) (pBuff - cmdStr.Name);
                 lineLen -= cmdStr.Len;
-                // find cmd
+                // find cmd               
                 __convert((char*) cmdStr.Name, cmdStr.Len);
                 cmdIndex = __search(manager->List.Cmds, manager->List.Len, sizeof(manager->List.Cmds[0]), &cmdStr, Cmd_compareName);
                 if (cmdIndex != -1) {
@@ -322,7 +321,7 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                 #endif // CMD_LIST_MODE
                     if (manager->PatternTypes) {
                         Cmd_Type type = Cmd_Type_None;
-                        Mem_LenType typeIndex;
+                        Mem_LenType typeIndex;       
                         // ignore whitespaces between Cmd_Name and Cmd_Type
                         pBuff = Str_ignoreWhitespace(pBuff);
                         // find cmd type len
@@ -332,7 +331,7 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
                         lineLen -= cmdStr.Len;
                         // find cmd type
                         typeIndex = Mem_linearSearch(manager->PatternTypes->Patterns, CMD_TYPE_LEN, sizeof(Cmd_Str*), &cmdStr, CmdType_compare);
-                        if (typeIndex != -1) {
+                        if (typeIndex != -1) {       
                             cursor->Ptr = pBuff;
                             cursor->Len = lineLen;
                             cursor->ParamSeperator = manager->ParamSeperator;
@@ -470,6 +469,10 @@ Cmd_Param* CmdManager_nextParam(Cmd_Cursor* cursor, Cmd_Param* param) {
         case '"':
             // string
             res = CmdParam_parseString(cursor, param);
+            break;   
+        case 'n':
+        case 'N':
+            res = CmdParam_parseNull(cursor, param);
             break;
         default:
             // unknown
