@@ -5,3 +5,4 @@ Examples/Basic/obj/
 *.c~
 *.cci
 *.hci
+.vscode/
