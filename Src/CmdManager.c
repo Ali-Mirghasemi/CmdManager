@@ -264,141 +264,189 @@ void CmdManager_handle(CmdManager* manager, IStream* stream) {
  */
 void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer, Str_LenType len, Cmd_Cursor* cursor) {
     if (IStream_available(stream) > 0) {
-        Cmd_Str cmdStr;
-        char* pBuff = buffer;
-        Stream_LenType lineLen = IStream_readBytesUntilPattern(stream, (const uint8_t*) manager->EndWith->Name, manager->EndWith->Len, (uint8_t*) pBuff, len);
+        Stream_LenType lineLen = IStream_readBytesUntilPattern(stream, (const uint8_t*) manager->EndWith->Name, manager->EndWith->Len, (uint8_t*) buffer, len);
         if (lineLen > 0) {   
             Mem_LenType cmdIndex;
             lineLen -= manager->EndWith->Len;
             // check end with for overflow error
-            if (Str_compareFix((const char*) &pBuff[lineLen], (const char*) manager->EndWith->Name, manager->EndWith->Len) != 0) {
+            if (Str_compareFix((const char*) &buffer[lineLen], (const char*) manager->EndWith->Name, manager->EndWith->Len) != 0) {
                 if (manager->bufferOverflow) {
                     manager->bufferOverflow(manager);
                 }
                 return;
             }
             // remove endWith
-            pBuff[lineLen] = '\0';
+            buffer[lineLen] = '\0';
             // check it's empty line or not
             if(lineLen == 0) {
                 return;
             }
-        #if CMD_REMOVE_BACKSPACE
-            // remove backspaces
-            Str_removeBackspaceFix(pBuff, lineLen);
-        #endif // CMD_REMOVE_BACKSPACE
-            // check it's from last cmd or it's new cmd
-            if (manager->InUseCmd == NULL) {
-                // ignore whitspaces in start of frame
-                pBuff = Str_ignoreWhitespace(pBuff);
-                // check start with
-                if (manager->StartWith) {
-                #if CMD_CONVERT_START_WITH
-                    __convert(pBuff, manager->StartWith->Len);
-                #endif // CMD_CONVERT_START_WITH
-                    if (Str_compareFix(pBuff, manager->StartWith->Name, manager->StartWith->Len) == 0) {
-                        pBuff += manager->StartWith->Len;
-                    }
-                    else {
-                        return;
-                    }
+            CmdManager_processLine(manager, buffer, lineLen, cursor);
+        }
+    }
+}
+/**
+ * @brief process string buffer
+ * 
+ * @param manager 
+ * @param buffer 
+ * @param lineLen 
+ * @param cursor 
+ */
+char* CmdManager_process(CmdManager* manager, char* buffer, Str_LenType len, Cmd_Cursor* cursor) {
+    if (len > 0) {
+        // read line
+        Str_LenType lineLen = Str_posOf(buffer, manager->EndWith->Name);
+        if (lineLen > 0) {   
+            // check end with for overflow error
+            if (Str_compareFix((const char*) &buffer[lineLen], (const char*) manager->EndWith->Name, manager->EndWith->Len) != 0) {
+                if (manager->bufferOverflow) {
+                    manager->bufferOverflow(manager);
                 }
-                // ignore whitspaces
-                pBuff = Str_ignoreWhitespace(pBuff);
-                // find cmd name len
-                cmdStr.Name = pBuff;
-                pBuff = Str_ignoreNameCharacters(pBuff);
-                cmdStr.Len = (Str_LenType) (pBuff - cmdStr.Name);
-                lineLen -= cmdStr.Len;
-                // find cmd               
-                __convert((char*) cmdStr.Name, cmdStr.Len);
-                cmdIndex = __search(manager->List.Cmds, manager->List.Len, sizeof(manager->List.Cmds[0]), &cmdStr, Cmd_compareName);
-                if (cmdIndex != -1) {
-                #if CMD_LIST_MODE == CMD_LIST_ARRAY
-                    Cmd* cmd = &manager->List.Cmds[cmdIndex];
-                #else
-                    Cmd* cmd = manager->List.Cmds[cmdIndex];
-                #endif // CMD_LIST_MODE
-                    if (manager->PatternTypes) {
-                        Cmd_Type type = Cmd_Type_None;
-                        Mem_LenType typeIndex;       
-                        // ignore whitespaces between Cmd_Name and Cmd_Type
-                        pBuff = Str_ignoreWhitespace(pBuff);
-                        // find cmd type len
-                        cmdStr.Name = pBuff;
-                        pBuff = Str_ignoreCommandCharacters(pBuff);
-                        cmdStr.Len = (Str_LenType) (pBuff - cmdStr.Name);
-                        lineLen -= cmdStr.Len;
-                        // find cmd type
-                        typeIndex = Mem_linearSearch(manager->PatternTypes->Patterns, CMD_TYPE_LEN, sizeof(Cmd_Str*), &cmdStr, CmdType_compare);
-                        if (typeIndex != -1) {       
-                            cursor->Ptr = pBuff;
-                            cursor->Len = lineLen;
-                            cursor->ParamSeperator = manager->ParamSeperator;
-                            cursor->Index = 0;
-                            type = (Cmd_Type) (1 << typeIndex);
-                        #if CMD_MULTI_CALLBACK
-                            if (cmd->Callbacks.fn[typeIndex] && (cmd->Types.Flags & type)) {
-                                if (cmd->Callbacks.fn[typeIndex](manager, cmd, cursor, type) != Cmd_Done) {
-                                    manager->InUseCmd = cmd;
-                                    manager->InUseCmdTypeIndex = typeIndex;
-                                }
-                                return;
-                            }
-                        #else
-                            if (cmd->Callbacks.fn[0] && (cmd->Types.Flags & type)) {
-                                if (cmd->Callbacks.fn[0](cmd, cursor, type) != Cmd_Done) {
-                                    manager->InUseCmd = cmd;
-                                    manager->InUseCmdTypeIndex = typeIndex;
-                                }
-                                return;
-                            }
-                        #endif // CMD_MULTI_CALLBACK
-                        }
-                        else {
-                        #if CMD_TYPE_UNKNOWN
-                        #if CMD_MULTI_CALLBACK
-                            if (cmd->Callbacks.unknown && (cmd->Types.Flags & Cmd_Type_Unknown)) {
-                                if (cmd->Callbacks.unknown(manager, cmd, cursor, type) != Cmd_Done) {
-                                    manager->InUseCmd = cmd;
-                                    manager->InUseCmdTypeIndex = typeIndex;
-                                }
-                                return;
-                            }
-                        #else
-                            if (cmd->Callbacks.fn[0] && (cmd->Types.Flags & Cmd_Type_Unknown)) {
-                                if (cmd->Callbacks.fn[0](cmd, cursor, type) != Cmd_Done) {
-                                    manager->InUseCmd = cmd;
-                                    manager->InUseCmdTypeIndex = typeIndex;
-                                }
-                                return;
-                            }
-                        #endif // CMD_MULTI_CALLBACK
-                        #endif // CMD_TYPE_UNKNOWN
-                        }
-                    }
-                }
-                // run not found
-                if (manager->notFound) {
-                    manager->notFound(manager, buffer);
-                }
+                return;
+            }
+            // remove endWith
+            buffer[lineLen] = '\0';
+            // check it's empty line or not
+            if(lineLen == 0) {
+                return NULL;
+            }
+            // process line
+            CmdManager_processLine(manager, buffer, lineLen, cursor);
+            // return end of line
+            return &buffer[lineLen + manager->EndWith->Len];
+        }
+    }
+    else {
+        return NULL;
+    }
+}
+/**
+ * @brief process single line without check ending pattern
+ * 
+ * @param manager 
+ * @param buffer 
+ * @param len 
+ * @param cursor 
+ */
+void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineLen, Cmd_Cursor* cursor) {
+    Cmd_Str cmdStr;
+    Mem_LenType cmdIndex;
+    char* baseBuffer = buffer;
+#if CMD_REMOVE_BACKSPACE
+    // remove backspaces
+    Str_removeBackspaceFix(buffer, lineLen);
+#endif // CMD_REMOVE_BACKSPACE
+    // check it's from last cmd or it's new cmd
+    if (manager->InUseCmd == NULL) {
+        // ignore whitspaces in start of frame
+        buffer = Str_ignoreWhitespace(buffer);
+        // check start with
+        if (manager->StartWith) {
+        #if CMD_CONVERT_START_WITH
+            __convert(buffer, manager->StartWith->Len);
+        #endif // CMD_CONVERT_START_WITH
+            if (Str_compareFix(buffer, manager->StartWith->Name, manager->StartWith->Len) == 0) {
+                buffer += manager->StartWith->Len;
             }
             else {
-                cursor->Ptr = pBuff;
-                cursor->Len = lineLen;
-                cursor->ParamSeperator = manager->ParamSeperator;
-                cursor->Index = 0;
-            #if CMD_MULTI_CALLBACK
-                if (manager->InUseCmd->Callbacks.fn[manager->InUseCmdTypeIndex](manager, manager->InUseCmd, cursor, (Cmd_Type) (1 << manager->InUseCmdTypeIndex)) == Cmd_Done) {
-                    manager->InUseCmd = NULL;
-                }
-            #else
-                if (manager->InUseCmd->Callbacks.fn[0](manager, manager->InUseCmd, cursor, (Cmd_Type) (1 << manager->InUseCmdTypeIndex)) == Cmd_Done) {
-                    manager->InUseCmd = NULL;
-                }
-            #endif // CMD_MULTI_CALLBACK
+                return;
             }
         }
+        // ignore whitspaces
+        buffer = Str_ignoreWhitespace(buffer);
+        // find cmd name len
+        cmdStr.Name = buffer;
+        buffer = Str_ignoreNameCharacters(buffer);
+        cmdStr.Len = (Str_LenType) (buffer - cmdStr.Name);
+        lineLen -= cmdStr.Len;
+        // find cmd               
+        __convert((char*) cmdStr.Name, cmdStr.Len);
+        cmdIndex = __search(manager->List.Cmds, manager->List.Len, sizeof(manager->List.Cmds[0]), &cmdStr, Cmd_compareName);
+        if (cmdIndex != -1) {
+        #if CMD_LIST_MODE == CMD_LIST_ARRAY
+            Cmd* cmd = &manager->List.Cmds[cmdIndex];
+        #else
+            Cmd* cmd = manager->List.Cmds[cmdIndex];
+        #endif // CMD_LIST_MODE
+            if (manager->PatternTypes) {
+                Cmd_Type type = Cmd_Type_None;
+                Mem_LenType typeIndex;       
+                // ignore whitespaces between Cmd_Name and Cmd_Type
+                buffer = Str_ignoreWhitespace(buffer);
+                // find cmd type len
+                cmdStr.Name = buffer;
+                buffer = Str_ignoreCommandCharacters(buffer);
+                cmdStr.Len = (Str_LenType) (buffer - cmdStr.Name);
+                lineLen -= cmdStr.Len;
+                // find cmd type
+                typeIndex = Mem_linearSearch(manager->PatternTypes->Patterns, CMD_TYPE_LEN, sizeof(Cmd_Str*), &cmdStr, CmdType_compare);
+                if (typeIndex != -1) {       
+                    cursor->Ptr = buffer;
+                    cursor->Len = lineLen;
+                    cursor->ParamSeperator = manager->ParamSeperator;
+                    cursor->Index = 0;
+                    type = (Cmd_Type) (1 << typeIndex);
+                #if CMD_MULTI_CALLBACK
+                    if (cmd->Callbacks.fn[typeIndex] && (cmd->Types.Flags & type)) {
+                        if (cmd->Callbacks.fn[typeIndex](manager, cmd, cursor, type) != Cmd_Done) {
+                            manager->InUseCmd = cmd;
+                            manager->InUseCmdTypeIndex = typeIndex;
+                        }
+                        return;
+                    }
+                #else
+                    if (cmd->Callbacks.fn[0] && (cmd->Types.Flags & type)) {
+                        if (cmd->Callbacks.fn[0](cmd, cursor, type) != Cmd_Done) {
+                            manager->InUseCmd = cmd;
+                            manager->InUseCmdTypeIndex = typeIndex;
+                        }
+                        return;
+                    }
+                #endif // CMD_MULTI_CALLBACK
+                }
+                else {
+                #if CMD_TYPE_UNKNOWN
+                #if CMD_MULTI_CALLBACK
+                    if (cmd->Callbacks.unknown && (cmd->Types.Flags & Cmd_Type_Unknown)) {
+                        if (cmd->Callbacks.unknown(manager, cmd, cursor, type) != Cmd_Done) {
+                            manager->InUseCmd = cmd;
+                            manager->InUseCmdTypeIndex = typeIndex;
+                        }
+                        return;
+                    }
+                #else
+                    if (cmd->Callbacks.fn[0] && (cmd->Types.Flags & Cmd_Type_Unknown)) {
+                        if (cmd->Callbacks.fn[0](cmd, cursor, type) != Cmd_Done) {
+                            manager->InUseCmd = cmd;
+                            manager->InUseCmdTypeIndex = typeIndex;
+                        }
+                        return;
+                    }
+                #endif // CMD_MULTI_CALLBACK
+                #endif // CMD_TYPE_UNKNOWN
+                }
+            }
+        }
+        // run not found
+        if (manager->notFound) {
+            manager->notFound(manager, baseBuffer);
+        }
+    }
+    else {
+        cursor->Ptr = buffer;
+        cursor->Len = lineLen;
+        cursor->ParamSeperator = manager->ParamSeperator;
+        cursor->Index = 0;
+    #if CMD_MULTI_CALLBACK
+        if (manager->InUseCmd->Callbacks.fn[manager->InUseCmdTypeIndex](manager, manager->InUseCmd, cursor, (Cmd_Type) (1 << manager->InUseCmdTypeIndex)) == Cmd_Done) {
+            manager->InUseCmd = NULL;
+        }
+    #else
+        if (manager->InUseCmd->Callbacks.fn[0](manager, manager->InUseCmd, cursor, (Cmd_Type) (1 << manager->InUseCmdTypeIndex)) == Cmd_Done) {
+            manager->InUseCmd = NULL;
+        }
+    #endif // CMD_MULTI_CALLBACK
     }
 }
 /**

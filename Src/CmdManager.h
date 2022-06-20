@@ -12,7 +12,6 @@
 #ifndef _CMD_MANAGER_H_
 #define _CMD_MANAGER_H_
 
-#include "InputStream.h"
 #include "Str.h"
 #include <stdint.h>
 
@@ -106,13 +105,20 @@ typedef uint8_t Cmd_LenType;
  * @brief enable cmd type for unknown
  */
 #define CMD_TYPE_UNKNOWN                    1
+/**
+ * @brief enable use InputStream library
+ */
+#define CMD_STREAM                          1
+#if CMD_STREAM
+    #include "InputStream.h"
+#endif
 
 #define CMD_DEFAULT_PATTERN_TYPE_EXE        ""
 #define CMD_DEFAULT_PATTERN_TYPE_SET        "="
 #define CMD_DEFAULT_PATTERN_TYPE_GET        "?"
 #define CMD_DEFAULT_PATTERN_TYPE_HELP       "=?"
 #define CMD_DEFAULT_PATTERN_TYPE_RESP       ":"
-#define CMD_DEFAULT_END_WITH                "\r\n"
+#define CMD_DEFAULT_END_WITH                "\n"
 #define CMD_DEFAULT_PARAM_SEPERATOR         ','
 /********************************************************************************/
 
@@ -420,10 +426,15 @@ void CmdManager_setPatternTypes(CmdManager* manager, Cmd_PatternTypes* patterns)
 #if CMD_MANAGER_ARGS
     void  CmdManager_setArgs(CmdManager* manager, void* args);
     void* CmdManager_getArgs(CmdManager* manager);
-#endif
+#endif //CMD_MANAGER_ARGS
 
-void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer, Str_LenType len, Cmd_Cursor* cursor);
-void CmdManager_handle(CmdManager* manager, IStream* stream);
+#if CMD_STREAM
+    void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer, Str_LenType len, Cmd_Cursor* cursor);
+    void CmdManager_handle(CmdManager* manager, IStream* stream);
+#endif // CMD_STREAM
+
+char* CmdManager_process(CmdManager* manager, char* buffer, Str_LenType len, Cmd_Cursor* cursor);
+void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineLen, Cmd_Cursor* cursor);
 
 // Cmd_Param parser
 Cmd_Param* CmdManager_nextParam(Cmd_Cursor* cursor, Cmd_Param* param);
