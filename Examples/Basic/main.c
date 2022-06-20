@@ -1,3 +1,20 @@
+/**
+ * @file main.c
+ * @author Ali Mirghasemi (ali.mirghasemi1376.com.com)
+ * @brief this example show how to use this library
+ * This example tested with CodeBlocks
+ * Example Configuration for works on Windows
+ * - #define CMD_MULTI_CALLBACK                  1
+ * - #define CMD_LIST_MODE                       CMD_LIST_POINTER_ARRAY
+ * - #define CMD_DEFAULT_END_WITH                "\n"
+ * other configurations can change
+ * @version 0.1
+ * @date 2022-06-20
+ *
+ * @copyright Copyright (c) 2022
+ *
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -42,8 +59,8 @@ const Cmd_Array CMDS[] = {
 };
 const Mem_LenType CMDS_LEN = CMD_ARR_LEN(CMDS);
 
-void Cmd_onNotFound(char* str);
-void Cmd_onOverflow(void);
+void Cmd_onNotFound(CmdManager* manager, char* str);
+void Cmd_onOverflow(CmdManager* manager);
 
 char tempBuffer[64];
 uint8_t streamBuffer[100];
@@ -214,9 +231,9 @@ Cmd_Handled Exit_onExecute(CmdManager* manager, Cmd* cmd, Cmd_Cursor* cursor, Cm
     return Cmd_Done;
 }
 
-void Cmd_onNotFound(char* str) {
+void Cmd_onNotFound(CmdManager* manager, char* str) {
     printf("NotFound: \"%s\"\n", str);
 }
-void Cmd_onOverflow(void) {
+void Cmd_onOverflow(CmdManager* manager) {
     printf("Buffer Overflow\n");
 }
