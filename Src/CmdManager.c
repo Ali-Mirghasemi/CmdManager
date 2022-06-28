@@ -64,15 +64,6 @@ static char Cmd_compare(const void* itemA, const void* itemB, Mem_LenType itemLe
 static char Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemLen);
 static void Cmd_swap(void* itemA, void* itemB, Mem_LenType itemLen);
 static char CmdType_compare(const void* name, const void* type, Mem_LenType itemLen);
-static uint8_t CmdParam_parseBinary(Cmd_Cursor* cursor, Cmd_Param* param);
-static uint8_t CmdParam_parseHex(Cmd_Cursor* cursor, Cmd_Param* param);
-static uint8_t CmdParam_parseNum(Cmd_Cursor* cursor, Cmd_Param* param);
-static uint8_t CmdParam_parseString(Cmd_Cursor* cursor, Cmd_Param* param);
-static uint8_t CmdParam_parseState(Cmd_Cursor* cursor, Cmd_Param* param);
-static uint8_t CmdParam_parseStateKey(Cmd_Cursor* cursor, Cmd_Param* param);
-static uint8_t CmdParam_parseBoolean(Cmd_Cursor* cursor, Cmd_Param* param);
-static uint8_t CmdParam_parseNull(Cmd_Cursor* cursor, Cmd_Param* param);
-static uint8_t CmdParam_parseUnknown(Cmd_Cursor* cursor, Cmd_Param* param);
 /**
  * @brief initialize Cmd
  *
@@ -81,7 +72,7 @@ static uint8_t CmdParam_parseUnknown(Cmd_Cursor* cursor, Cmd_Param* param);
  * @param types
  */
 void Cmd_init(Cmd* cmd, const char* name, Cmd_Type types) {
-    cmd->CmdName.Name = name;
+    cmd->CmdName.Text = name;
     cmd->CmdName.Len = Str_len(name);
     cmd->Types.Flags = (uint8_t) types;
     Mem_set(cmd->Callbacks.fn, 0x00, sizeof(Cmd_Callbacks));
@@ -241,6 +232,7 @@ void* CmdManager_getArgs(CmdManager* manager) {
     return manager->Args;
 }
 #endif
+#if CMD_STREAM
 /**
  * @brief process incoming messages
  *
@@ -248,7 +240,7 @@ void* CmdManager_getArgs(CmdManager* manager) {
  * @param stream
  */
 void CmdManager_handle(CmdManager* manager, IStream* stream) {
-    Cmd_Cursor cursor;
+    Param_Cursor cursor;
     char buffer[CMD_HANDLE_BUFFER_SIZE];
 
     CmdManager_handleStatic(manager, stream, buffer, sizeof(buffer), &cursor);
@@ -262,14 +254,14 @@ void CmdManager_handle(CmdManager* manager, IStream* stream) {
  * @param len
  * @param cursor
  */
-void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer, Str_LenType len, Cmd_Cursor* cursor) {
+void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer, Str_LenType len, Param_Cursor* cursor) {
     if (IStream_available(stream) > 0) {
-        Stream_LenType lineLen = IStream_readBytesUntilPattern(stream, (const uint8_t*) manager->EndWith->Name, manager->EndWith->Len, (uint8_t*) buffer, len);
+        Stream_LenType lineLen = IStream_readBytesUntilPattern(stream, (const uint8_t*) manager->EndWith->Text, manager->EndWith->Len, (uint8_t*) buffer, len);
         if (lineLen > 0) {   
             Mem_LenType cmdIndex;
             lineLen -= manager->EndWith->Len;
             // check end with for overflow error
-            if (Str_compareFix((const char*) &buffer[lineLen], (const char*) manager->EndWith->Name, manager->EndWith->Len) != 0) {
+            if (Str_compareFix((const char*) &buffer[lineLen], (const char*) manager->EndWith->Text, manager->EndWith->Len) != 0) {
                 if (manager->bufferOverflow) {
                     manager->bufferOverflow(manager);
                 }
@@ -285,6 +277,7 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
         }
     }
 }
+#endif // CMD_STREAM
 /**
  * @brief process string buffer
  * 
@@ -293,13 +286,13 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
  * @param lineLen 
  * @param cursor 
  */
-char* CmdManager_process(CmdManager* manager, char* buffer, Str_LenType len, Cmd_Cursor* cursor) {
+char* CmdManager_process(CmdManager* manager, char* buffer, Str_LenType len, Param_Cursor* cursor) {
     if (len > 0) {
         // read line
-        Str_LenType lineLen = Str_posOf(buffer, manager->EndWith->Name);
+        Str_LenType lineLen = Str_posOf(buffer, manager->EndWith->Text);
         if (lineLen > 0) {   
             // check end with for overflow error
-            if (Str_compareFix((const char*) &buffer[lineLen], (const char*) manager->EndWith->Name, manager->EndWith->Len) != 0) {
+            if (Str_compareFix((const char*) &buffer[lineLen], (const char*) manager->EndWith->Text, manager->EndWith->Len) != 0) {
                 if (manager->bufferOverflow) {
                     manager->bufferOverflow(manager);
                 }
@@ -329,7 +322,7 @@ char* CmdManager_process(CmdManager* manager, char* buffer, Str_LenType len, Cmd
  * @param len 
  * @param cursor 
  */
-void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineLen, Cmd_Cursor* cursor) {
+void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineLen, Param_Cursor* cursor) {
     Cmd_Str cmdStr;
     Mem_LenType cmdIndex;
     char* baseBuffer = buffer;
@@ -346,7 +339,7 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
         #if CMD_CONVERT_START_WITH
             __convert(buffer, manager->StartWith->Len);
         #endif // CMD_CONVERT_START_WITH
-            if (Str_compareFix(buffer, manager->StartWith->Name, manager->StartWith->Len) == 0) {
+            if (Str_compareFix(buffer, manager->StartWith->Text, manager->StartWith->Len) == 0) {
                 buffer += manager->StartWith->Len;
             }
             else {
@@ -356,12 +349,12 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
         // ignore whitspaces
         buffer = Str_ignoreWhitespace(buffer);
         // find cmd name len
-        cmdStr.Name = buffer;
+        cmdStr.Text = buffer;
         buffer = Str_ignoreNameCharacters(buffer);
-        cmdStr.Len = (Str_LenType) (buffer - cmdStr.Name);
+        cmdStr.Len = (Str_LenType) (buffer - cmdStr.Text);
         lineLen -= cmdStr.Len;
         // find cmd               
-        __convert((char*) cmdStr.Name, cmdStr.Len);
+        __convert((char*) cmdStr.Text, cmdStr.Len);
         cmdIndex = __search(manager->List.Cmds, manager->List.Len, sizeof(manager->List.Cmds[0]), &cmdStr, Cmd_compareName);
         if (cmdIndex != -1) {
         #if CMD_LIST_MODE == CMD_LIST_ARRAY
@@ -375,9 +368,9 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
                 // ignore whitespaces between Cmd_Name and Cmd_Type
                 buffer = Str_ignoreWhitespace(buffer);
                 // find cmd type len
-                cmdStr.Name = buffer;
+                cmdStr.Text = buffer;
                 buffer = Str_ignoreCommandCharacters(buffer);
-                cmdStr.Len = (Str_LenType) (buffer - cmdStr.Name);
+                cmdStr.Len = (Str_LenType) (buffer - cmdStr.Text);
                 lineLen -= cmdStr.Len;
                 // find cmd type
                 typeIndex = Mem_linearSearch(manager->PatternTypes->Patterns, CMD_TYPE_LEN, sizeof(Cmd_Str*), &cmdStr, CmdType_compare);
@@ -449,278 +442,19 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
     #endif // CMD_MULTI_CALLBACK
     }
 }
-/**
- * @brief parse next param and return
- *
- * @param cursor
- * @param param
- * @return Cmd_Param* return null if param was invalid
- */
-Cmd_Param* CmdManager_nextParam(Cmd_Cursor* cursor, Cmd_Param* param) {
-    char* pStr;
-    uint8_t res = 0;
-    // check cursor is valid
-    if (cursor->Ptr == NULL || *cursor->Ptr == '\0') {
-        return NULL;
-    }
-    // ignore whitspaces
-    cursor->Ptr = Str_ignoreWhitespace(cursor->Ptr);
-    // find value type base on first charcater
-    switch (*cursor->Ptr) {
-        case '0':
-            switch (*(cursor->Ptr + 1)) {
-                case 'b':
-                case 'B':
-                    // binary num
-                    res = CmdParam_parseBinary(cursor, param);
-                    break;
-                case 'x':
-                case 'X':
-                    // hex num
-                    res = CmdParam_parseHex(cursor, param);
-                    break;
-            }
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-        case '-':
-            // check for number or its float
-            if (!res) {
-                res = CmdParam_parseNum(cursor, param);
-            }
-            break;
-        case 't':
-        case 'T':
-        case 'f':
-        case 'F':
-            // boolean
-            res = CmdParam_parseBoolean(cursor, param);
-            break;
-        case 'o':
-        case 'O':
-            // state
-            res = CmdParam_parseStateKey(cursor, param);
-            break;
-        case 'h':
-        case 'H':
-        case 'l':
-        case 'L':
-            // state key
-            res = CmdParam_parseState(cursor, param);
-            break;
-        case '"':
-            // string
-            res = CmdParam_parseString(cursor, param);
-            break;   
-        case 'n':
-        case 'N':
-            res = CmdParam_parseNull(cursor, param);
-            break;
-        default:
-            // unknown
-            res = CmdParam_parseUnknown(cursor, param);
-            break;
-    }
-    // find next seperator
-    pStr = Str_indexOf(cursor->Ptr, cursor->ParamSeperator);
-    if (pStr != NULL) {
-        Str_LenType len = (Str_LenType)(cursor->Ptr - pStr);
-        cursor->Ptr = pStr + 1;
-        cursor->Len -= len + 1;
-    }
-    else {
-        cursor->Ptr = NULL;
-        cursor->Len = 0;
-    }
-    // return param
-    if (res) {
-        param->Index = ++cursor->Index;
-        return param;
-    }
-    else {
-        return NULL;
-    }
-}
-
-static uint8_t CmdParam_parseBinary(Cmd_Cursor* cursor, Cmd_Param* param) {
-    char* pStr = cursor->Ptr;
-    Str_LenType len;
-    cursor->Ptr = Str_ignoreNumeric(cursor->Ptr + 2);
-    len = (Str_LenType)(cursor->Ptr - pStr);
-    cursor->Len -= len;
-
-    param->ValueType = Cmd_ValueType_NumberBinary;
-    return Str_convertUNumFix(pStr + 2, (unsigned int*) &param->Value.NumberBinary, Str_Binary, len - 2) == Str_Ok;
-}
-static uint8_t CmdParam_parseHex(Cmd_Cursor* cursor, Cmd_Param* param) {
-    char* pStr = cursor->Ptr;
-    Str_LenType len;
-    cursor->Ptr = Str_ignoreAlphaNumeric(cursor->Ptr + 2);
-    len = (Str_LenType)(cursor->Ptr - pStr);
-    cursor->Len -= len;
-
-    param->ValueType = Cmd_ValueType_NumberHex;
-    return Str_convertUNumFix(pStr + 2, (unsigned int*) &param->Value.NumberHex, Str_Hex, len - 2) == Str_Ok;
-}
-static uint8_t CmdParam_parseNum(Cmd_Cursor* cursor, Cmd_Param* param) {
-    char* pStr = cursor->Ptr;
-    Str_LenType len;
-
-    if (*cursor->Ptr == '-') {
-        cursor->Ptr++;
-    }
-    cursor->Ptr = Str_ignoreNumeric(cursor->Ptr);
-
-    if (*cursor->Ptr == '.') {
-        // it's float
-        cursor->Ptr = Str_ignoreNumeric(cursor->Ptr + 1);
-        len = (Str_LenType)(cursor->Ptr - pStr);
-        cursor->Len -= len;
-
-        param->ValueType = Cmd_ValueType_Float;
-        return Str_convertFloatFix(pStr, &param->Value.Float, len) == Str_Ok;
-    }
-    else {
-        // it's number
-        len = (Str_LenType)(cursor->Ptr - pStr);
-        cursor->Len -= len;
-        param->ValueType = Cmd_ValueType_Number;
-        return Str_convertNumFix(pStr, (int*) &param->Value.Number, Str_Decimal, len) == Str_Ok;
-    }
-}
-static uint8_t CmdParam_parseString(Cmd_Cursor* cursor, Cmd_Param* param) {
-    char* pStr = cursor->Ptr;
-    Str_LenType len = Str_fromString(cursor->Ptr) + 2;
-
-    if (len != -1) {
-        cursor->Ptr += len;
-        cursor->Len -= len;
-
-        param->ValueType = Cmd_ValueType_String;
-        param->Value.String = pStr;
-
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
-static uint8_t CmdParam_parseState(Cmd_Cursor* cursor, Cmd_Param* param) {
-    char* pStr = cursor->Ptr;
-    Str_LenType len;
-    cursor->Ptr = Str_ignoreAlphabet(cursor->Ptr);
-    len = (Str_LenType)(cursor->Ptr - pStr);
-    cursor->Len -= len;
-
-    __convert(pStr, len);
-    param->ValueType = Cmd_ValueType_State;
-    if (Str_compareFix(pStr, "high", len) == 0 || Str_compareFix(pStr, "HIGH", len) == 0) {
-        param->Value.State = 1;
-        return 1;
-    }
-    else if (Str_compareFix(pStr, "low", len) == 0 || Str_compareFix(pStr, "LOW", len) == 0) {
-        param->Value.State = 0;
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
-static uint8_t CmdParam_parseStateKey(Cmd_Cursor* cursor, Cmd_Param* param) {
-    char* pStr = cursor->Ptr;
-    Str_LenType len;
-    cursor->Ptr = Str_ignoreAlphabet(cursor->Ptr);
-    len = (Str_LenType)(cursor->Ptr - pStr);
-    cursor->Len -= len;
-
-    __convert(pStr, len);
-    param->ValueType = Cmd_ValueType_StateKey;
-    if (Str_compareFix(pStr, "on", len) == 0 || Str_compareFix(pStr, "ON", len) == 0) {
-        param->Value.StateKey = 1;
-        return 1;
-    }
-    else if (Str_compareFix(pStr, "off", len) == 0 || Str_compareFix(pStr, "OFF", len) == 0) {
-        param->Value.StateKey = 0;
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
-static uint8_t CmdParam_parseBoolean(Cmd_Cursor* cursor, Cmd_Param* param) {
-    char* pStr = cursor->Ptr;
-    Str_LenType len;
-    cursor->Ptr = Str_ignoreAlphabet(cursor->Ptr);
-    len = (Str_LenType)(cursor->Ptr - pStr);
-    cursor->Len -= len;
-
-    __convert(pStr, len);
-    param->ValueType = Cmd_ValueType_Boolean;
-    if (Str_compareFix(pStr, "true", len) == 0 || Str_compareFix(pStr, "TRUE", len) == 0) {
-        param->Value.Boolean = 1;
-        return 1;
-    }
-    else if (Str_compareFix(pStr, "false", len) == 0 || Str_compareFix(pStr, "FALSE", len) == 0) {
-        param->Value.Boolean = 0;
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
-static uint8_t CmdParam_parseNull(Cmd_Cursor* cursor, Cmd_Param* param) {
-    char* pStr = cursor->Ptr;
-    Str_LenType len;
-    cursor->Ptr = Str_ignoreAlphabet(cursor->Ptr);
-    len = (Str_LenType)(cursor->Ptr - pStr);
-    cursor->Len -= len;
-
-    __convert(pStr, len);
-    param->ValueType = Cmd_ValueType_Null;
-    if (Str_compareFix(pStr, "null", len) == 0 || Str_compareFix(pStr, "NULL", len) == 0) {
-        param->Value.Null = pStr;
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
-static uint8_t CmdParam_parseUnknown(Cmd_Cursor* cursor, Cmd_Param* param) {
-    param->ValueType = Cmd_ValueType_Unknown;
-    param->Value.Unknown = cursor->Ptr;
-
-    cursor->Ptr = Str_indexOf(cursor->Ptr, cursor->ParamSeperator);
-    if (cursor->Ptr) {
-        Str_LenType len;
-        len = (Str_LenType)(cursor->Ptr - param->Value.Unknown);
-        cursor->Len -= len;
-    }
-    else {
-        cursor->Ptr = Str_indexOfEnd(cursor->Ptr);
-        cursor->Len = 0;
-    }
-
-    return 1;
-}
 
 static char Cmd_compare(const void* itemA, const void* itemB, Mem_LenType itemLen) {
 #if CMD_LIST_MODE == CMD_LIST_ARRAY
-    return Str_compare(Mem_castItem(Cmd, itemA)->CmdName.Name, Mem_castItem(Cmd, itemB)->CmdName.Name);
+    return Str_compare(Mem_castItem(Cmd, itemA)->CmdName.Text, Mem_castItem(Cmd, itemB)->CmdName.Text);
 #else
-    return Str_compare((*Mem_castItem(Cmd*, itemA))->CmdName.Name, (*Mem_castItem(Cmd*, itemB))->CmdName.Name);
+    return Str_compare((*Mem_castItem(Cmd*, itemA))->CmdName.Text, (*Mem_castItem(Cmd*, itemB))->CmdName.Text);
 #endif // CMD_LIST_MODE
 }
 static char Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemLen) {
 #if CMD_LIST_MODE == CMD_LIST_ARRAY
     Str_LenType result;
     if ((result = Mem_castItem(Cmd_Str, name)->Len - Mem_castItem(Cmd, cmd)->CmdName.Len) == 0) {
-        return Str_compareFix(Mem_castItem(Cmd_Str, name)->Name, Mem_castItem(Cmd, cmd)->CmdName.Name, Mem_castItem(Cmd_Str, name)->Len);
+        return Str_compareFix(Mem_castItem(Cmd_Str, name)->Name, Mem_castItem(Cmd, cmd)->CmdName.Text, Mem_castItem(Cmd_Str, name)->Len);
     }
     else {
         return result > 0 ? 1 : -1;
@@ -728,7 +462,7 @@ static char Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemL
 #else
     Str_LenType result;
     if ((result = Mem_castItem(Cmd_Str, name)->Len - (*Mem_castItem(Cmd*, cmd))->CmdName.Len) == 0) {
-        return Str_compareFix(Mem_castItem(Cmd_Str, name)->Name, (*Mem_castItem(Cmd*, cmd))->CmdName.Name, Mem_castItem(Cmd_Str, name)->Len);
+        return Str_compareFix(Mem_castItem(Cmd_Str, name)->Text, (*Mem_castItem(Cmd*, cmd))->CmdName.Text, Mem_castItem(Cmd_Str, name)->Len);
     }
     else {
         return result > 0 ? 1 : -1;
@@ -752,7 +486,7 @@ static void Cmd_swap(void* itemA, void* itemB, Mem_LenType itemLen) {
 static char CmdType_compare(const void* name, const void* type, Mem_LenType itemLen) {
     Str_LenType result;
     if ((result = Mem_castItem(Cmd_Str, name)->Len - (*Mem_castItem(Cmd_Str*, type))->Len) == 0) {
-        return Str_compareFix(Mem_castItem(Cmd_Str, name)->Name, (*Mem_castItem(Cmd_Str*, type))->Name, Mem_castItem(Cmd_Str, name)->Len);
+        return Str_compareFix(Mem_castItem(Cmd_Str, name)->Text, (*Mem_castItem(Cmd_Str*, type))->Text, Mem_castItem(Cmd_Str, name)->Len);
     }
     else {
         return result > 0 ? 1 : -1;

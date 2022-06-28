@@ -12,7 +12,12 @@
 #ifndef _CMD_MANAGER_H_
 #define _CMD_MANAGER_H_
 
+#define CMD_VER_MAJOR   0
+#define CMD_VER_MINOR   1
+#define CMD_VER_FIX     0
+
 #include "Str.h"
+#include "Param.h"
 #include <stdint.h>
 
 /********************************************************************************/
@@ -113,6 +118,11 @@ typedef uint8_t Cmd_LenType;
     #include "InputStream.h"
 #endif
 
+/**
+ * @brief choose type of cmd strings
+ */
+typedef StrConst Cmd_Str;
+
 #define CMD_DEFAULT_PATTERN_TYPE_EXE        ""
 #define CMD_DEFAULT_PATTERN_TYPE_SET        "="
 #define CMD_DEFAULT_PATTERN_TYPE_GET        "?"
@@ -129,8 +139,6 @@ extern "C" {
 /* pre-define types */
 struct __Cmd;
 typedef struct __Cmd Cmd;
-struct __Cmd_Cursor;
-typedef struct __Cmd_Cursor Cmd_Cursor;
 struct __CmdManager;
 typedef struct __CmdManager CmdManager;
 /**
@@ -147,14 +155,6 @@ typedef struct __CmdManager CmdManager;
 #else
     #define Cmd_Array   Cmd*
 #endif
-
-/**
- * @brief hold command name and len of name
- */
-typedef struct {
-    const char*     Name;
-    Str_LenType     Len;
-} Cmd_Str;
 typedef enum {
 #if CMD_TYPE_EXE
     Cmd_TypeIndex_Execute,
@@ -211,56 +211,9 @@ typedef enum {
 /**
  * @brief callback of command
  */
-typedef Cmd_Handled (*Cmd_CallbackFn) (CmdManager* manager, Cmd* cmd, Cmd_Cursor* cursor, Cmd_Type type);
+typedef Cmd_Handled (*Cmd_CallbackFn) (CmdManager* manager, Cmd* cmd, Param_Cursor* cursor, Cmd_Type type);
 typedef void (*Cmd_NotFoundFn) (CmdManager* manager, char* str);
 typedef void (*Cmd_OverflowFn) (CmdManager* manager);
-/**
- * @brief show type of param
- */
-typedef enum {
-  Cmd_ValueType_Unknown,        /**< first character of value not match with anyone of supported values */
-  Cmd_ValueType_Number,         /**< ex: 13 */
-  Cmd_ValueType_NumberHex,      /**< ex: 0xAB25 */
-  Cmd_ValueType_NumberBinary,   /**< ex: 0b64813 */
-  Cmd_ValueType_Float,          /**< ex: 2.54 */
-  Cmd_ValueType_State,          /**< (high, low), ex: high */
-  Cmd_ValueType_StateKey,       /**< (on, off), ex: off */
-  Cmd_ValueType_Boolean,        /**< (true, false), ex: true */
-  Cmd_ValueType_String,         /**< ex: "Text" */
-  Cmd_ValueType_Null,           /**< ex: null */
-} Cmd_ValueType;
-/**
- * @brief hold type of param in same memory
- */
-typedef union {
-    char*           Unknown;
-    int32_t         Number;
-    uint32_t        NumberHex;
-    uint32_t        NumberBinary;
-    float           Float;
-    uint8_t         State;
-    uint8_t         StateKey;
-    uint8_t         Boolean;
-    char*           String;
-    char*           Null;
-} Cmd_Value;
-/**
- * @brief show details of param
- */
-typedef struct {
-    Cmd_Value       Value;
-    Cmd_ValueType   ValueType;
-    Cmd_LenType     Index;
-} Cmd_Param;
-/**
- * @brief use for handle params and show current pos
- */
-struct __Cmd_Cursor {
-    char*           Ptr;
-    Str_LenType     Len;
-    char            ParamSeperator;
-    Cmd_LenType     Index;
-};
 /**
  * @brief hold callback functions
  */
@@ -429,15 +382,15 @@ void CmdManager_setPatternTypes(CmdManager* manager, Cmd_PatternTypes* patterns)
 #endif //CMD_MANAGER_ARGS
 
 #if CMD_STREAM
-    void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer, Str_LenType len, Cmd_Cursor* cursor);
+    void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer, Str_LenType len, Param_Cursor* cursor);
     void CmdManager_handle(CmdManager* manager, IStream* stream);
 #endif // CMD_STREAM
 
-char* CmdManager_process(CmdManager* manager, char* buffer, Str_LenType len, Cmd_Cursor* cursor);
-void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineLen, Cmd_Cursor* cursor);
+char* CmdManager_process(CmdManager* manager, char* buffer, Str_LenType len, Param_Cursor* cursor);
+void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineLen, Param_Cursor* cursor);
 
-// Cmd_Param parser
-Cmd_Param* CmdManager_nextParam(Cmd_Cursor* cursor, Cmd_Param* param);
+// for compatibility
+#define CmdManager_nextParam    Param_next
 
 #ifdef __cplusplus
 };
