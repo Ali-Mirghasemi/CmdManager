@@ -16,6 +16,7 @@
 					<Add directory="../../Src" />
 					<Add directory="../../../Str/Src" />
 					<Add directory="../../../Stream/Src" />
+					<Add directory="../../../Param/Src" />
 				</Compiler>
 			</Target>
 			<Target title="Release">
@@ -34,6 +35,9 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="../../../Param/Src/Param.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="../../../Str/Src/Str.c">
 			<Option compilerVar="CC" />
 		</Unit>
