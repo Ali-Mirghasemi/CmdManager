@@ -16,6 +16,10 @@
 #define CMD_VER_MINOR   1
 #define CMD_VER_FIX     0
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "Str.h"
 #include "Param.h"
 #include <stdint.h>
@@ -131,10 +135,6 @@ typedef StrConst Cmd_Str;
 #define CMD_DEFAULT_END_WITH                "\n"
 #define CMD_DEFAULT_PARAM_SEPERATOR         ','
 /********************************************************************************/
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* pre-define types */
 struct __Cmd;
