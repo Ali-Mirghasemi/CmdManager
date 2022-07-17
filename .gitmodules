@@ -1,3 +1,6 @@
 [submodule "Examples/AVR-CmdManager"]
 	path = Examples/AVR-CmdManager
 	url = https://github.com/Ali-Mirghasemi/AVR-CmdManager-Example
+[submodule "Examples/STM32F429-DISCO"]
+	path = Examples/STM32F429-DISCO
+	url = https://github.com/Ali-Mirghasemi/STM32F429-DISCO-CmdManager
