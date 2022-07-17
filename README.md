@@ -14,4 +14,4 @@
 ## Examples
 - [Basic](./Examples/Basic/) shows basic usage of `CmdManager` Library
 - [AVR-CmdManager](./Examples/AVR-CmdManager/) shows basic usage of `CmdManager` Library ported for AVR microcontroller
-
+- [STM32F429-DISCO](./Examples/STM32F429-DISCO/) shows basic usage of `CmdManager` Library ported for STM32F429-DISCO microcontroller
