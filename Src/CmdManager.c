@@ -60,10 +60,12 @@ const Cmd_Str CMD_END_WITH = CMD_STR_INIT(CMD_DEFAULT_END_WITH);
     #define __convert(STR, LEN)
 #endif
 /* private functions */
-static char Cmd_compare(const void* itemA, const void* itemB, Mem_LenType itemLen);
-static char Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemLen);
-static void Cmd_swap(void* itemA, void* itemB, Mem_LenType itemLen);
-static char CmdType_compare(const void* name, const void* type, Mem_LenType itemLen);
+#if CMD_SORT_LIST
+    static Mem_CmpResult Cmd_compare(const void* itemA, const void* itemB, Mem_LenType itemLen);
+    static void Cmd_swap(void* itemA, void* itemB, Mem_LenType itemLen);
+#endif // CMD_SORT_LIST
+static Mem_CmpResult Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemLen);
+static Mem_CmpResult CmdType_compare(const void* name, const void* type, Mem_LenType itemLen);
 /**
  * @brief initialize Cmd
  *
@@ -258,7 +260,6 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
     if (IStream_available(stream) > 0) {
         Stream_LenType lineLen = IStream_readBytesUntilPattern(stream, (const uint8_t*) manager->EndWith->Text, manager->EndWith->Len, (uint8_t*) buffer, len);
         if (lineLen > 0) {   
-            Mem_LenType cmdIndex;
             lineLen -= manager->EndWith->Len;
             // check end with for overflow error
             if (Str_compareFix((const char*) &buffer[lineLen], (const char*) manager->EndWith->Text, manager->EndWith->Len) != 0) {
@@ -289,14 +290,14 @@ void CmdManager_handleStatic(CmdManager* manager, IStream* stream, char* buffer,
 char* CmdManager_process(CmdManager* manager, char* buffer, Str_LenType len, Param_Cursor* cursor) {
     if (len > 0) {
         // read line
-        Str_LenType lineLen = Str_posOf(buffer, manager->EndWith->Text);
+        Str_LenType lineLen = Str_posOf(buffer, *manager->EndWith->Text);
         if (lineLen > 0) {   
             // check end with for overflow error
             if (Str_compareFix((const char*) &buffer[lineLen], (const char*) manager->EndWith->Text, manager->EndWith->Len) != 0) {
                 if (manager->bufferOverflow) {
                     manager->bufferOverflow(manager);
                 }
-                return;
+                return NULL;
             }
             // remove endWith
             buffer[lineLen] = '\0';
@@ -308,11 +309,9 @@ char* CmdManager_process(CmdManager* manager, char* buffer, Str_LenType len, Par
             CmdManager_processLine(manager, buffer, lineLen, cursor);
             // return end of line
             return &buffer[lineLen + manager->EndWith->Len];
-        }
+        }     
     }
-    else {
-        return NULL;
-    }
+    return NULL;
 }
 /**
  * @brief process single line without check ending pattern
@@ -341,13 +340,13 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
         #endif // CMD_CONVERT_START_WITH
             if (Str_compareFix(buffer, manager->StartWith->Text, manager->StartWith->Len) == 0) {
                 buffer += manager->StartWith->Len;
+                // ignore whitspaces
+                buffer = Str_ignoreWhitespace(buffer);
             }
             else {
                 return;
             }
         }
-        // ignore whitspaces
-        buffer = Str_ignoreWhitespace(buffer);
         // find cmd name len
         cmdStr.Text = buffer;
         buffer = Str_ignoreNameCharacters(buffer);
@@ -357,11 +356,7 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
         __convert((char*) cmdStr.Text, cmdStr.Len);
         cmdIndex = __search(manager->List.Cmds, manager->List.Len, sizeof(manager->List.Cmds[0]), &cmdStr, Cmd_compareName);
         if (cmdIndex != -1) {
-        #if CMD_LIST_MODE == CMD_LIST_ARRAY
-            Cmd* cmd = &manager->List.Cmds[cmdIndex];
-        #else
-            Cmd* cmd = manager->List.Cmds[cmdIndex];
-        #endif // CMD_LIST_MODE
+            Cmd* cmd = CmdList_get(manager->List.Cmds, cmdIndex);
             if (manager->PatternTypes) {
                 Cmd_Type type = Cmd_Type_None;
                 Mem_LenType typeIndex;       
@@ -442,15 +437,7 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
     #endif // CMD_MULTI_CALLBACK
     }
 }
-
-static char Cmd_compare(const void* itemA, const void* itemB, Mem_LenType itemLen) {
-#if CMD_LIST_MODE == CMD_LIST_ARRAY
-    return Str_compare(Mem_castItem(Cmd, itemA)->CmdName.Text, Mem_castItem(Cmd, itemB)->CmdName.Text);
-#else
-    return Str_compare((*Mem_castItem(Cmd*, itemA))->CmdName.Text, (*Mem_castItem(Cmd*, itemB))->CmdName.Text);
-#endif // CMD_LIST_MODE
-}
-static char Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemLen) {
+static Mem_CmpResult Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemLen) {
 #if CMD_LIST_MODE == CMD_LIST_ARRAY
     Str_LenType result;
     if ((result = Mem_castItem(Cmd_Str, name)->Len - Mem_castItem(Cmd, cmd)->CmdName.Len) == 0) {
@@ -470,6 +457,16 @@ static char Cmd_compareName(const void* name, const void* cmd, Mem_LenType itemL
 
 #endif // CMD_LIST_MODE
 }
+static Mem_CmpResult CmdType_compare(const void* name, const void* type, Mem_LenType itemLen) {
+    Str_LenType result;
+    if ((result = Mem_castItem(Cmd_Str, name)->Len - (*Mem_castItem(Cmd_Str*, type))->Len) == 0) {
+        return Str_compareFix(Mem_castItem(Cmd_Str, name)->Text, (*Mem_castItem(Cmd_Str*, type))->Text, Mem_castItem(Cmd_Str, name)->Len);
+    }
+    else {
+        return result > 0 ? 1 : -1;
+    }
+}
+#if CMD_SORT_LIST
 static void Cmd_swap(void* itemA, void* itemB, Mem_LenType itemLen) {
 #if CMD_LIST_MODE == CMD_LIST_ARRAY
     Cmd temp;
@@ -483,12 +480,11 @@ static void Cmd_swap(void* itemA, void* itemB, Mem_LenType itemLen) {
     Mem_copy(itemB, &temp, itemLen);
 #endif // CMD_LIST_MODE
 }
-static char CmdType_compare(const void* name, const void* type, Mem_LenType itemLen) {
-    Str_LenType result;
-    if ((result = Mem_castItem(Cmd_Str, name)->Len - (*Mem_castItem(Cmd_Str*, type))->Len) == 0) {
-        return Str_compareFix(Mem_castItem(Cmd_Str, name)->Text, (*Mem_castItem(Cmd_Str*, type))->Text, Mem_castItem(Cmd_Str, name)->Len);
-    }
-    else {
-        return result > 0 ? 1 : -1;
-    }
+static Mem_CmpResult Cmd_compare(const void* itemA, const void* itemB, Mem_LenType itemLen) {
+#if CMD_LIST_MODE == CMD_LIST_ARRAY
+    return Str_compare(Mem_castItem(Cmd, itemA)->CmdName.Text, Mem_castItem(Cmd, itemB)->CmdName.Text);
+#else
+    return Str_compare((*Mem_castItem(Cmd*, itemA))->CmdName.Text, (*Mem_castItem(Cmd*, itemB))->CmdName.Text);
+#endif // CMD_LIST_MODE
 }
+#endif // CMD_SORT_LIST

@@ -35,7 +35,7 @@ extern "C" {
 /**
  * @brief enable sort Cmd_Array on init or setCmds
  */
-#define CMD_SORT_LIST                       1
+#define CMD_SORT_LIST                       0
 
 #if CMD_SORT_LIST
     #define CMD_SORT_ALG_SELECTION          1
@@ -43,7 +43,7 @@ extern "C" {
     /**
      * @brief set what algorithm used for sort commands
      */
-    #define CMD_SORT_ALG                    CMD_SORT_ALG_QUICK_SORT
+    #define CMD_SORT_ALG                    CMD_SORT_ALG_SELECTION
 #endif // CMD_SORT_LIST
 
 
@@ -151,9 +151,11 @@ typedef struct __CmdManager CmdManager;
 #define CMD_PATTERN_TYPE_LEN        (CMD_TYPE_EXE + CMD_TYPE_SET + CMD_TYPE_GET + CMD_TYPE_HELP + CMD_TYPE_RESP)
 
 #if CMD_LIST_MODE == CMD_LIST_ARRAY
-    #define Cmd_Array   Cmd
+    #define Cmd_Array               Cmd
+    #define CmdList_get(LIST, IDX)  (&LIST[(IDX)])
 #else
-    #define Cmd_Array   Cmd*
+    #define Cmd_Array               Cmd*
+    #define CmdList_get(LIST, IDX)  (LIST[(IDX)])
 #endif
 typedef enum {
 #if CMD_TYPE_EXE
