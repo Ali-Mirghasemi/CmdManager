@@ -4,3 +4,6 @@
 [submodule "Examples/STM32F429-DISCO"]
 	path = Examples/STM32F429-DISCO
 	url = https://github.com/Ali-Mirghasemi/STM32F429-DISCO-CmdManager
+[submodule "Examples/STM32F030F4"]
+	path = Examples/STM32F030F4
+	url = https://github.com/Ali-Mirghasemi/STM32F030F4-CmdManager
