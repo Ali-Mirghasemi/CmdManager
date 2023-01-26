@@ -6,3 +6,4 @@ Examples/Basic/obj/
 *.cci
 *.hci
 .vscode/
+Examples/Basic/bin/
