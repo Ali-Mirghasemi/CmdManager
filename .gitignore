@@ -5,5 +5,6 @@ Examples/Basic/obj/
 *.c~
 *.cci
 *.hci
+*.exe
 .vscode/
 Examples/Basic/bin/
