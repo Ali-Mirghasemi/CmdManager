@@ -379,7 +379,7 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
                 if (typeIndex != -1) {
                     cursor->Ptr = buffer;
                     cursor->Len = lineLen;
-                    cursor->ParamSeperator = manager->ParamSeperator;
+                    cursor->ParamSeparator = manager->ParamSeperator;
                     cursor->Index = 0;
                     type = (Cmd_Type) (1 << typeIndex);
                 #if CMD_MULTI_CALLBACK
@@ -431,7 +431,7 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
     else {
         cursor->Ptr = buffer;
         cursor->Len = lineLen;
-        cursor->ParamSeperator = manager->ParamSeperator;
+        cursor->ParamSeparator = manager->ParamSeperator;
         cursor->Index = 0;
     #if CMD_MULTI_CALLBACK
         if (manager->InUseCmd->Callbacks.fn[manager->InUseCmdTypeIndex](manager, manager->InUseCmd, cursor, (Cmd_Type) (1 << manager->InUseCmdTypeIndex)) == Cmd_Done) {

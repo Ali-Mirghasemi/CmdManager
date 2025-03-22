@@ -91,7 +91,7 @@ void printCmds(Cmd_Array* cmds, int len) {
     }
 }
 void printCursor(Param_Cursor* cursor) {
-    printf("{%d, \"%s\", %u, %c}\n", cursor->Len, cursor->Ptr, cursor->Index, cursor->ParamSeperator);
+    printf("{%d, \"%s\", %u, %c}\n", cursor->Len, cursor->Ptr, cursor->Index, cursor->ParamSeparator);
 }
 void printCmdParam(Param* param) {
     static const char* TYPES[] = {
