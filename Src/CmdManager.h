@@ -133,7 +133,7 @@ typedef StrConst Cmd_Str;
 #define CMD_DEFAULT_PATTERN_TYPE_HELP       "=?"
 #define CMD_DEFAULT_PATTERN_TYPE_RESP       ":"
 #define CMD_DEFAULT_END_WITH                "\n"
-#define CMD_DEFAULT_PARAM_SEPERATOR         ','
+#define CMD_DEFAULT_PARAM_SEPARATOR         ','
 /********************************************************************************/
 
 /* pre-define types */
@@ -324,14 +324,14 @@ struct __CmdManager {
     Cmd_OverflowFn      bufferOverflow;
     Cmd*                InUseCmd;
     Cmd_List            List;
-    char                ParamSeperator;
+    char                ParamSeparator;
     uint8_t             InUseCmdTypeIndex;
 };
 
 /* default types */
 extern const Cmd_PatternTypes   CMD_PATTERN_TYPES;
 extern const Cmd_Str            CMD_END_WITH;
-extern const char               CMD_PARAM_SEPERATOR;
+extern const char               CMD_PARAM_SEPARATOR;
 /* pre-processor APIs for const define */
 #define CMD_STR_INIT(NAME)          {NAME, sizeof(NAME) - 1}
 #define CMD_ARR_LEN(ARR)            (sizeof(ARR) / sizeof(ARR[0]))
@@ -374,7 +374,7 @@ void CmdManager_setStartWith(CmdManager* manager, Cmd_Str* startWith);
 void CmdManager_setEndWith(CmdManager* manager, Cmd_Str* endWith);
 void CmdManager_onNotFound(CmdManager* manager, Cmd_NotFoundFn notFound);
 void CmdManager_onOverflow(CmdManager* manager, Cmd_OverflowFn overflow);
-void CmdManager_setParamSeperator(CmdManager* manager, char sep);
+void CmdManager_setParamSeparator(CmdManager* manager, char sep);
 void CmdManager_setCommands(CmdManager* manager, Cmd_Array* cmds, Cmd_LenType len);
 void CmdManager_setPatternTypes(CmdManager* manager, Cmd_PatternTypes* patterns);
 

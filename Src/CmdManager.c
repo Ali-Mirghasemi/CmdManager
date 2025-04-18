@@ -133,7 +133,7 @@ void Cmd_on(Cmd* cmd, Cmd_CallbackFn fn) {
 }
 #endif // CMD_MULTI_CALLBACK
 /**
- * @brief initialize CmdManager with default pattern and param seperator
+ * @brief initialize CmdManager with default pattern and param separator
  *
  * @param manager
  * @param cmds
@@ -147,7 +147,7 @@ void CmdManager_init(CmdManager* manager, Cmd_Array* cmds, Cmd_LenType len) {
     manager->List.Len = len;
     manager->notFound = (Cmd_NotFoundFn) NULL;
     manager->bufferOverflow = (Cmd_OverflowFn) NULL;
-    manager->ParamSeperator = CMD_DEFAULT_PARAM_SEPERATOR;
+    manager->ParamSeparator = CMD_DEFAULT_PARAM_SEPARATOR;
     manager->InUseCmd = NULL;
 #if CMD_SORT_LIST
     __sort(manager->List.Cmds, manager->List.Len, sizeof(manager->List.Cmds[0]), Cmd_compare, Cmd_swap);
@@ -190,13 +190,13 @@ void CmdManager_onOverflow(CmdManager* manager, Cmd_OverflowFn overflow) {
     manager->bufferOverflow = overflow;
 }
 /**
- * @brief set param seperator
+ * @brief set param separator
  *
  * @param manager
  * @param sep
  */
-void CmdManager_setParamSeperator(CmdManager* manager, char sep) {
-    manager->ParamSeperator = sep;
+void CmdManager_setParamSeparator(CmdManager* manager, char sep) {
+    manager->ParamSeparator = sep;
 }
 /**
  * @brief set commands list
@@ -379,7 +379,7 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
                 if (typeIndex != -1) {
                     cursor->Ptr = buffer;
                     cursor->Len = lineLen;
-                    cursor->ParamSeparator = manager->ParamSeperator;
+                    cursor->ParamSeparator = manager->ParamSeparator;
                     cursor->Index = 0;
                     type = (Cmd_Type) (1 << typeIndex);
                 #if CMD_MULTI_CALLBACK
@@ -431,7 +431,7 @@ void CmdManager_processLine(CmdManager* manager, char* buffer, Str_LenType lineL
     else {
         cursor->Ptr = buffer;
         cursor->Len = lineLen;
-        cursor->ParamSeparator = manager->ParamSeperator;
+        cursor->ParamSeparator = manager->ParamSeparator;
         cursor->Index = 0;
     #if CMD_MULTI_CALLBACK
         if (manager->InUseCmd->Callbacks.fn[manager->InUseCmdTypeIndex](manager, manager->InUseCmd, cursor, (Cmd_Type) (1 << manager->InUseCmdTypeIndex)) == Cmd_Done) {
